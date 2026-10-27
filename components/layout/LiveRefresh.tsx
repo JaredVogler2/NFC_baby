@@ -21,6 +21,8 @@ export function LiveRefresh({ timezone }: { timezone: string }) {
   const refresh = useCallback(
     (force = false) => {
       const now = Date.now()
+      // Offline, a refresh would replace the last loaded data with the offline page: keep it.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return
       // focus + visibilitychange often fire together: collapse bursts within a second.
       if (!force && now - last.current < 1_000) return
       last.current = now

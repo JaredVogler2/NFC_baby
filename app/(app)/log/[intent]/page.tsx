@@ -26,7 +26,9 @@ export default async function LogPage({
   if (!child) redirect('/settings')
   const feedSuggestions = intent === 'FEED' ? await getFeedSuggestions(supabase, child.id) : null
   const repeatValues =
-    intent === 'FEED' && repeat === '1' ? await lastFeedAsForm(supabase, child.id) : null
+    intent === 'FEED' && repeat === '1'
+      ? await lastFeedAsForm(supabase, child.id, ctx.household.defaultVolumeUnit)
+      : null
   return (
     <LogScreen
       intent={intent}

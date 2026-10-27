@@ -28,6 +28,8 @@ const schema = z.object({
   CRON_SECRET: z.string().min(32).optional(),
   CONTACT_ENCRYPTION_KEY: base64Key.optional(),
   BOOTSTRAP_OWNER_EMAIL: z.email().optional(),
+  /** Seconds between sign-in code requests for one address (same for members and strangers). */
+  AUTH_CODE_COOLDOWN_SECONDS: z.coerce.number().int().min(0).max(3600).default(60),
 })
 
 export type ServerEnv = z.infer<typeof schema>
@@ -53,6 +55,7 @@ export function loadServerEnv(): { env: ServerEnv; problems: string[] } {
     CRON_SECRET: process.env.CRON_SECRET,
     CONTACT_ENCRYPTION_KEY: process.env.CONTACT_ENCRYPTION_KEY,
     BOOTSTRAP_OWNER_EMAIL: process.env.BOOTSTRAP_OWNER_EMAIL,
+    AUTH_CODE_COOLDOWN_SECONDS: process.env.AUTH_CODE_COOLDOWN_SECONDS,
   })
   const problems: string[] = []
   const result = schema.safeParse(raw)

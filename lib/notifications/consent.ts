@@ -22,3 +22,6 @@ export const STOP_WORDS = new Set([
   'OPTOUT',
   'REVOKE',
 ])
+
+/** Carrier-standard re-subscribe keywords: the number may verify again (texts stay off until then). */
+export const START_WORDS = new Set(['START', 'UNSTOP', 'YES'])

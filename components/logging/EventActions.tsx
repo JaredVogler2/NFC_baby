@@ -66,7 +66,11 @@ export function EventActions({
       {editing ? (
         <div className="rounded-[var(--radius-card)] border border-border bg-surface p-4">
           {previouslyNotified ? (
-            <Banner tone="warning" title="A text was already sent for this entry" className="mb-4">
+            <Banner
+              tone="warning"
+              title="A text may already have been sent for this entry"
+              className="mb-4"
+            >
               Editing corrects History for everyone, but the original text may already have been
               received. No correction text is sent.
             </Banner>

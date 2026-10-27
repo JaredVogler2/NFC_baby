@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import type { ReactNode } from 'react'
+import { BackForwardGuard } from '@/components/layout/BackForwardGuard'
 import { ServiceWorkerRegistrar } from '@/components/offline/ServiceWorkerRegistrar'
 import { THEME_COOKIE, parseTheme } from '@/lib/theme'
 import './globals.css'
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </a>
         {children}
         <ServiceWorkerRegistrar />
+        <BackForwardGuard />
       </body>
     </html>
   )

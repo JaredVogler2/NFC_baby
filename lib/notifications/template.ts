@@ -44,12 +44,20 @@ export function renderUpdateText(
   return opts.link ? `${text} View: ${opts.link}` : text
 }
 
-/** Display names are user-entered; keep SMS bodies single-line and short. */
-function sanitizeName(name: string): string {
+/**
+ * Display names are user-entered and go out from the family's registered sender: keep them
+ * single-line and short, and strip anything link- or phone-number-like (carriers filter those,
+ * and a name must never become a way to send someone a link or a number).
+ */
+export function sanitizeName(name: string): string {
   const clean = name
     .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\b(?:https?:\/\/|www\.)\S*/gi, '')
+    .replace(/\b[\w-]+(?:\.[\w-]+)*\.(?:[a-z]{2,})(?:\/\S*)?/gi, '')
+    .replace(/[+()\d][\d\s().-]{4,}\d/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 40)
+    .trim()
   return clean || 'a parent'
 }

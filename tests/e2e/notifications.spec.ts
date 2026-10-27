@@ -55,7 +55,9 @@ async function verifyOwnNumber(page: Page, number: string) {
   await expect(page.getByText(/not verified yet/)).toBeVisible()
   await page.getByLabel('I agree').check()
   await page.getByRole('button', { name: 'Text me a verification code' }).click()
-  await expect(page.getByText('Code sent by text. Enter it below.')).toBeVisible()
+  await expect(
+    page.getByText('Code handed to the text provider. Enter it below when it arrives.'),
+  ).toBeVisible()
   await page.getByLabel('Code from the text').fill(await waitForSentCode(number.slice(-4)))
   await page.getByRole('button', { name: 'Verify' }).click()
   await expect(page.getByText('Verified. Automatic texts are on for you.')).toBeVisible()
@@ -74,7 +76,12 @@ async function signedPost(path: string, params: Record<string, string>, signatur
 }
 
 test.describe.configure({ mode: 'serial' })
-test.beforeAll(() => rmSync(LOG, { force: true }))
+test.beforeAll(() => {
+  rmSync(LOG, { force: true })
+  // STOP replies and verification sends are remembered per number across runs (by design):
+  // start this spec's fictional numbers clean.
+  sql('truncate public.notification_phone_opt_outs, public.notification_verification_sends')
+})
 
 test('default mode is off: saving works with zero messaging setup and nothing is texted', async ({
   browser,

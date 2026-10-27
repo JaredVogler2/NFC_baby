@@ -25,7 +25,7 @@ type FormSource = {
 type View =
   | { kind: 'loading' }
   | { kind: 'form'; form: FormSource; path: string }
-  | { kind: 'generic'; ctx: OfflineContext | null }
+  | { kind: 'generic'; ctx: OfflineContext | null; path: string }
 
 /** Work out what this phone can offer for the address that failed to load. */
 async function resolveView(path: string, search: string): Promise<View> {
@@ -75,7 +75,7 @@ async function resolveView(path: string, search: string): Promise<View> {
       }
     }
   }
-  return { kind: 'generic', ctx }
+  return { kind: 'generic', ctx, path }
 }
 
 export function OfflineScreen() {
@@ -86,7 +86,7 @@ export function OfflineScreen() {
     let cancelled = false
     resolveView(window.location.pathname, window.location.search).then(
       (v) => !cancelled && setView(v),
-      () => !cancelled && setView({ kind: 'generic', ctx: null }),
+      () => !cancelled && setView({ kind: 'generic', ctx: null, path: window.location.pathname }),
     )
     return () => {
       cancelled = true
@@ -97,11 +97,17 @@ export function OfflineScreen() {
     return <LogScreen {...view.form} returnPath={view.path} feedSuggestions={null} offline />
   }
 
+  // /saved/<id> is only opened after the server confirmed the entry.
+  const afterSave = view.kind === 'generic' && view.path.startsWith('/saved/')
   return (
     <PublicShell>
-      <h1 className="font-display text-2xl font-bold">You’re offline</h1>
+      <h1 className="font-display text-2xl font-bold">
+        {afterSave ? 'Saved ✓ — details need a connection' : 'You’re offline'}
+      </h1>
       <p className="mt-2 text-muted">
-        This page needs a connection. Nothing was recorded from this screen.
+        {afterSave
+          ? 'The server confirmed your entry before the connection dropped. It is in the shared history; don’t log it again.'
+          : 'This page needs a connection. Nothing was recorded from this screen.'}
       </p>
       {view.kind === 'generic' && !view.ctx ? (
         <p className="mt-2 text-muted">

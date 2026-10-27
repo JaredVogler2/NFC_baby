@@ -1,7 +1,7 @@
 import { phoneHmac } from '@/lib/crypto/contacts'
 import { apiRoute } from '@/lib/http/server'
 import { errorCode, log } from '@/lib/log'
-import { STOP_WORDS } from '@/lib/notifications/consent'
+import { START_WORDS, STOP_WORDS } from '@/lib/notifications/consent'
 import { normalizePhone } from '@/lib/notifications/phone'
 import { verifiedTwilioForm } from '@/lib/notifications/webhook'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
@@ -22,6 +22,12 @@ export const POST = apiRoute('/api/v1/notifications/twilio/inbound', async (requ
     })
     if (error) log.error('twilio.opt_out_failed', { code: errorCode(error) })
     else log.info('twilio.opt_out', { count: Number(data) })
+  } else if (from && START_WORDS.has(word)) {
+    // Only lifts the STOP block; automatic texts resume after the person verifies in the app.
+    const { error } = await createSupabaseAdminClient().rpc('record_opt_in', {
+      p_phone_hmac: phoneHmac(from),
+    })
+    if (error) log.error('twilio.opt_in_failed', { code: errorCode(error) })
   }
   return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
     headers: { 'Content-Type': 'text/xml', 'Cache-Control': 'no-store' },

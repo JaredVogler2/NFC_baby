@@ -79,20 +79,22 @@ export function twilioProvider(cfg: {
           signal: controller.signal,
         })
       } catch (err) {
+        clearTimeout(timer)
         const code = (err as { cause?: { code?: string } })?.cause?.code ?? ''
         if (NOT_SENT.has(code)) return { kind: 'rejected', code: `NET_${code}`, retryable: true }
         return {
           kind: 'unknown',
           code: controller.signal.aborted ? 'TIMEOUT' : `NET_${code || 'ERROR'}`,
         }
-      } finally {
-        clearTimeout(timer)
       }
       let payload: Record<string, unknown> = {}
       try {
+        // The timeout also covers reading the body (a stalled body must not outlive the lease).
         payload = (await res.json()) as Record<string, unknown>
       } catch {
         payload = {}
+      } finally {
+        clearTimeout(timer)
       }
       if (res.status === 201 || res.status === 200) {
         const sid = typeof payload.sid === 'string' ? payload.sid : null

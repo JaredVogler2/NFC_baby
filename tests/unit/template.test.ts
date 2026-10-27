@@ -120,3 +120,15 @@ describe('event summary', () => {
     expect(eventSummary({ subtype: 'BOTH', feeding: null }, 'oz')).toBe('Wet + poop')
   })
 })
+
+describe('display names in texts', () => {
+  it('strips links and phone numbers a member could put in their name', async () => {
+    const { sanitizeName } = await import('@/lib/notifications/template')
+    expect(sanitizeName('Dad')).toBe('Dad')
+    expect(sanitizeName("Jo-Ann O'Neil")).toBe("Jo-Ann O'Neil")
+    expect(sanitizeName('bit.ly/xyz call 900-555-0199')).toBe('call')
+    expect(sanitizeName('Visit https://evil.example/now')).toBe('Visit')
+    expect(sanitizeName('www.evil.com')).toBe('a parent')
+    expect(sanitizeName('Mom\nSecond line')).toBe('Mom Second line')
+  })
+})

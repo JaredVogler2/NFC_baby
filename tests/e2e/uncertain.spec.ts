@@ -44,16 +44,16 @@ test.describe('uncertain saves', () => {
     })
     expect(countEvents(fam.householdId)).toBe(0)
     await page.getByRole('button', { name: 'Keep as pending on this phone' }).click()
-    await expect(
-      page.getByText('Pending on this device — NOT yet in shared history; no text sent.'),
-    ).toBeVisible()
+    // It may have reached the server: no "no text sent" claim.
+    await expect(page.getByText('Kept on this phone — may already be saved')).toBeVisible()
+    await expect(page.getByText(/no text sent/)).toHaveCount(0)
     await page.unrouteAll()
-    // Scanning again later shows that an earlier entry is still only on this phone.
+    // Scanning again with signal syncs the earlier, deliberately saved entry (Safari keeps its own
+    // storage, so this is where it gets the chance); the scan itself adds nothing.
     await page.goto(`/t/${token}`)
-    await expect(page.getByText(/1 earlier entry is still pending on this phone/)).toBeVisible()
-    expect(countEvents(fam.householdId)).toBe(0) // scanning never syncs or saves anything
-    await page.getByRole('link', { name: 'Open Home to sync' }).click()
-    await expect(page.getByText(/1 pending entry is now in the shared history/)).toBeVisible()
+    await expect(
+      page.getByText(/1 earlier entry from this phone is now in the shared history/),
+    ).toBeVisible()
     expect(countEvents(fam.householdId)).toBe(1)
     expect(
       sql(`select source from public.care_events where household_id = '${fam.householdId}'`),

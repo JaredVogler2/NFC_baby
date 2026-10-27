@@ -37,7 +37,9 @@ export default async function TagPage({ params }: { params: Promise<{ token: str
   if (!resolved) notFound()
 
   const role = resolved.role
-  if (resolved.status === 'REVOKED') return <TagRetired canManage={can.manageTags(role)} />
+  // A sticker of an archived child is retired too (the server refuses to log through it).
+  if (resolved.status === 'REVOKED' || resolved.child.archived)
+    return <TagRetired canManage={can.manageTags(role)} />
   if (!can.log(role)) return <TagViewOnly />
   const feedSuggestions =
     resolved.tag.purpose === 'FEED' ? await getFeedSuggestions(supabase, resolved.child.id) : null

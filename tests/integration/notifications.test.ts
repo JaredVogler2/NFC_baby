@@ -42,6 +42,10 @@ async function addVerifiedNumber(f: Family, user: TestUser, e164: string) {
 }
 
 async function automaticFamily(momNumber = '+12015550101', dadNumber = '+12015550102') {
+  // A STOP is remembered per number across families and test runs: start these numbers clean.
+  psql(
+    `delete from public.notification_phone_opt_outs where phone_hmac in ('${phoneHmac(momNumber)}', '${phoneHmac(dadNumber)}')`,
+  )
   const f = await createFamily('Notify family')
   await admin.from('households').update({ notification_mode: 'AUTOMATIC' }).eq('id', f.householdId)
   await admin.from('notification_preferences').insert([
@@ -338,6 +342,8 @@ describe('database delivery functions', () => {
       p_set_by: g.owner.id,
     })
     const mac = phoneHmac('+12015550121')
+    // Verification sends are logged per number across runs: start from a clean log.
+    psql(`delete from public.notification_verification_sends where phone_hmac = '${mac}'`)
     const begin = () =>
       admin.rpc('begin_contact_verification', {
         p_household_id: g.householdId,
@@ -358,7 +364,7 @@ describe('database delivery functions', () => {
     expect((await confirm('424242')).data).toBe('too_many_attempts')
 
     psql(
-      `update public.notification_contacts set last_verification_sent_at = now() - interval '2 minutes' where user_id = '${g.parent.id}'`,
+      `update public.notification_verification_sends set sent_at = sent_at - interval '2 minutes' where user_id = '${g.parent.id}'`,
     )
     expect((await begin()).data).toBe('ok')
     expect((await confirm('424242')).data).toBe('ok')

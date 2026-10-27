@@ -104,11 +104,12 @@ later). One logical text per entry per recipient (`unique(event_id, user_id, cha
 | queued | waiting to be handed to the provider (normally < 2 s) |
 | sent to the text provider | the provider accepted it — **not** proof of delivery |
 | delivered | the carrier reported delivery (Twilio status callback) |
-| not sent yet — will retry | provider temporarily refused (rate limit / 503); retried at 30 s, 2 min, 10 min (+jitter), max 4 tries |
+| not sent yet — tried again when someone opens Home (or within a day) | provider temporarily refused (rate limit / 503). It becomes due again after 30 s, 2 min, 10 min (+jitter), max 4 tries, and is actually retried the next time someone opens Home or the scheduler runs — and only while the entry is < 30 min old |
 | not sent — failed | permanent refusal (invalid number, carrier failure, too many tries) |
 | unknown | we sent the request but never got an answer (timeout). **Never resent automatically** — avoids double texts |
 | not texted — quiet hours / too many texts this hour | suppressed by preference / 20-per-hour safety ceiling |
-| not sent — entry was undone first / too late to be useful | canceled before sending (void, or > 30 min old — so enabling automatic mode can never send a backlog) |
+| not sent — entry was undone first / too late to be useful | canceled before sending (void; queued > 30 min ago; or the entry itself happened > 1 h ago, e.g. an offline entry synced later or a backfill — so enabling automatic mode can never send a backlog) |
+| not sent — texts were stopped / turned off in their text settings / automatic texts were turned off | re-checked immediately before sending: a STOP, a preference change or a mode change after the entry was saved is honoured |
 
 ### Owner setup for automatic texts (EXTERNAL SETUP — not done by the build)
 1. Twilio account → buy a US number → create a **Messaging Service** containing it.
@@ -127,8 +128,14 @@ later). One logical text per entry per recipient (`unique(event_id, user_id, cha
 6. Owner: "Send test text…" to each verified parent (one message, confirmed). Ask each parent
    whether it arrived. Only after both confirm real receipt may anyone say automatic texting works.
 7. Optional: point any scheduler at `/api/v1/notifications/dispatch` with the bearer secret every
-   few minutes to retry temporarily-failed texts promptly. Without it, retries happen whenever
-   someone saves an entry or opens Home. (Vercel Hobby cron runs at most once a day; not relied on.)
+   few minutes to retry temporarily-failed texts promptly. Without it, retries happen when someone
+   opens Home (a save only sends that entry's own texts), plus the once-a-day Vercel cron in
+   `vercel.json`.
+
+Numbers: only US/Canadian (+1) mobile numbers are accepted. Verification codes are limited to one
+per minute and five per 24 h per person, and five per 24 h per number — limits that survive
+removing and re-adding a number. A number that replied STOP can't be verified again until it
+replies START.
 
 ### Option 2 setup — "NFC Baby Notify" Shortcut (per iPhone, NEEDS HUMAN DEVICE testing)
 1. Shortcuts app → **+** → name it exactly **NFC Baby Notify**.

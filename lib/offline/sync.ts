@@ -72,7 +72,8 @@ export async function syncDraft(
 
   const res = await fetcher<EventBody>('/api/v1/events', {
     method: 'POST',
-    body: { ...draft.payload, offlineSync: true },
+    // childId is always sent so a sticker moved to another child since is refused, not re-filed.
+    body: { ...draft.payload, childId: draft.payload.childId ?? draft.childId, offlineSync: true },
     timeoutMs: 20_000,
   })
   const outcome = classifyPost(res)

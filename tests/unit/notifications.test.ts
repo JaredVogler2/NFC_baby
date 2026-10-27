@@ -16,16 +16,25 @@ describe('phone numbers', () => {
     ['(201) 555-0101', '+12015550101'],
     ['201.555.0101', '+12015550101'],
     ['1 201 555 0101', '+12015550101'],
-    ['+44 20 7946 0958', '+442079460958'],
+    ['+1 (201) 555-0101', '+12015550101'],
   ])('normalises %s', (input, e164) => {
     expect(normalizePhone(input)).toBe(e164)
   })
-  it.each(['555-0101', '123', '+0123456789', '011 555 555 5555', 'call me', '(055) 555-0101'])(
-    'rejects %s',
-    (input) => {
-      expect(normalizePhone(input)).toBeNull()
-    },
-  )
+  // Only US/Canada (+1) numbers: international and premium-rate destinations are refused, so
+  // verification codes can't be pumped abroad.
+  it.each([
+    '+44 20 7946 0958',
+    '+919812345678',
+    '+1 900 55',
+    '555-0101',
+    '123',
+    '+0123456789',
+    '011 555 555 5555',
+    'call me',
+    '(055) 555-0101',
+  ])('rejects %s', (input) => {
+    expect(normalizePhone(input)).toBeNull()
+  })
   it('masks to the last four digits only', () => {
     expect(last4('+12015550101')).toBe('0101')
     expect(maskPhone('0101')).toBe('•••• 0101')

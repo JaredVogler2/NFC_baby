@@ -14,7 +14,7 @@ import { apiFetch } from '@/lib/http/client'
 import type { FormState } from '@/lib/logging/attempt'
 import { localDateKey, localTimeValue } from '@/lib/time/zoned'
 import { NotesField } from './NotesField'
-import { resolveWhen, TimePicker } from './TimePicker'
+import { presetValue, resolveWhen, TimePicker } from './TimePicker'
 
 const DIAPER_OPTIONS = (['WET', 'POOP', 'BOTH'] as const).map((s) => ({
   value: s,
@@ -165,7 +165,8 @@ export function EditEventForm({
       <TimePicker
         value={when}
         onChange={(v) => {
-          setWhen({ ...v, mode: 'custom' })
+          // Edits always store an explicit time; "Now" means the current minute.
+          setWhen({ ...(v.mode === 'now' ? presetValue(0, timezone) : v), mode: 'custom' })
           setConfirmOld(false)
         }}
         timezone={timezone}

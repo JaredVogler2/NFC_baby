@@ -247,4 +247,27 @@ test.describe('offline and uncertain saves (J-I)', () => {
     expect(await idbCount(page, 'tags')).toBe(0)
     expect(await idbCount(page, 'context')).toBe(0)
   })
+
+  test('a pending sticker entry never syncs into a different child if the sticker was moved', async () => {
+    const token = await seedTag(fam, 'WET')
+    await installServiceWorker(page)
+    await page.goto(`/t/${token}`)
+    await expect(page.getByRole('button', { name: 'Save wet diaper' })).toBeVisible()
+    await context.setOffline(true)
+    await page.getByRole('button', { name: 'Save wet diaper' }).click()
+    await page.getByRole('button', { name: 'Keep as pending on this phone' }).click()
+    await expect(page.getByText(/Pending on this device/)).toBeVisible()
+    // Meanwhile the sticker is moved to another child of the family.
+    const other = await admin
+      .from('children')
+      .insert({ household_id: fam.householdId, nickname: 'Second child' })
+      .select('id')
+      .single()
+    if (other.error) throw other.error
+    sql(`update public.nfc_tags set child_id = '${other.data.id}' where token = '${token}'`)
+    await context.setOffline(false)
+    await page.goto('/dashboard')
+    await expect(page.getByTestId('pending-draft')).toContainText('belongs to a different child')
+    expect(countEvents(fam.householdId)).toBe(0)
+  })
 })

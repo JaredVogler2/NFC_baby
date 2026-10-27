@@ -45,6 +45,24 @@ export async function sendSignInCode(email: string): Promise<SendResult> {
   return 'unavailable'
 }
 
+/**
+ * One sign-in code request per address per cooldown, applied identically to members and unknown
+ * addresses (the rate-limit response must not reveal who is a member). Fails open when the
+ * database can't be asked: Supabase Auth's own limits still apply.
+ */
+export async function takeAuthCodeSlot(email: string): Promise<boolean> {
+  if (!hasAdminClient()) return true
+  const { data, error } = await createSupabaseAdminClient().rpc('take_auth_code_slot', {
+    p_email_hash: hashToken(`otp:${email}`),
+    p_cooldown_seconds: serverEnv().AUTH_CODE_COOLDOWN_SECONDS,
+  })
+  if (error) {
+    log.warn('auth.otp_slot_failed', { code: errorCode(error) })
+    return true
+  }
+  return data === true
+}
+
 /** First-owner bootstrap: create the auth user for BOOTSTRAP_OWNER_EMAIL while no family exists. */
 export async function ensureBootstrapUser(email: string): Promise<void> {
   const configured = serverEnv().BOOTSTRAP_OWNER_EMAIL?.toLowerCase()

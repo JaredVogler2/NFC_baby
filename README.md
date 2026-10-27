@@ -4,9 +4,10 @@ A deliberately simple, mobile-first baby-care tracker activated by NFC stickers 
 The repository holds the build specification (`prompts/`) **and the application built from it**.
 
 ## Status
-Phases 00–10 are implemented and verified by automated tests: 215 unit, 96 integration against a
-real local Supabase, and 92 Playwright end-to-end tests on an iPhone viewport, plus axe and
-Lighthouse checks. See [BUILD_STATUS.md](BUILD_STATUS.md) for the evidence per phase and
+Phases 00–12 are implemented and verified by automated tests: 225 unit, 107 integration against a
+real local Supabase, and 93 Playwright end-to-end tests on an iPhone viewport, plus axe and
+Lighthouse checks. An independent adversarial review (`REVIEW_REPORT.md`) found 1 P0 and 15 P1
+issues; all are fixed with regression tests. See [BUILD_STATUS.md](BUILD_STATUS.md) for the evidence per phase and
 [docs/ACCEPTANCE_MATRIX.md](docs/ACCEPTANCE_MATRIX.md) for each requirement.
 
 Some things still need the owner's own devices and accounts and are **not** verified yet:

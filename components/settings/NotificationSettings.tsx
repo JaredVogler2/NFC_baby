@@ -162,7 +162,13 @@ export function NotificationSettings({
             Other adults
           </h2>
           {others.map((r) => (
-            <OtherAdult key={r.userId} r={r} sms={sms} onMessage={setMsg} />
+            <OtherAdult
+              key={r.userId}
+              r={r}
+              sms={sms}
+              automatic={currentMode === 'AUTOMATIC'}
+              onMessage={setMsg}
+            />
           ))}
           <p className="text-sm text-muted">
             You can enter a number for someone, but texts start only after they verify it and agree
@@ -235,7 +241,7 @@ function MyTexts({
 
   async function run<T>(
     fn: () => Promise<{ ok: boolean; message?: string; fields?: Record<string, string> } & T>,
-    success: string,
+    success: string | ((res: T) => string),
   ) {
     setBusy(true)
     const res = await fn()
@@ -247,7 +253,7 @@ function MyTexts({
       })
       return false
     }
-    onMessage({ tone: 'success', text: success })
+    onMessage({ tone: 'success', text: typeof success === 'function' ? success(res) : success })
     router.refresh()
     return true
   }
@@ -328,11 +334,18 @@ function MyTexts({
               onClick={async () => {
                 const ok = await run(
                   () =>
-                    apiFetch('/api/v1/notifications/contact/verify-start', {
-                      method: 'POST',
-                      body: { consent: true, consentVersion },
-                    }).then((r) => (r.ok ? { ok: true } : { ok: false, message: r.message })),
-                  'Code sent by text. Enter it below.',
+                    apiFetch<{ sent: 'accepted' | 'unconfirmed' }>(
+                      '/api/v1/notifications/contact/verify-start',
+                      { method: 'POST', body: { consent: true, consentVersion } },
+                    ).then((r) =>
+                      r.ok
+                        ? { ok: true, sent: r.data.sent }
+                        : { ok: false, sent: undefined, message: r.message },
+                    ),
+                  (r: { sent?: 'accepted' | 'unconfirmed' }) =>
+                    r.sent === 'accepted'
+                      ? 'Code handed to the text provider. Enter it below when it arrives.'
+                      : 'The provider didn’t confirm the code was sent. If it doesn’t arrive in a minute, ask again.',
                 )
                 if (ok) setCodeSent(true)
               }}
@@ -472,13 +485,13 @@ function MyTexts({
               apiFetch('/api/v1/notifications/contact/stop', { method: 'POST', body: {} }).then(
                 (r) => (r.ok ? { ok: true } : { ok: false, message: r.message }),
               ),
-            'Texts stopped. Nothing more will be sent to you.',
+            'Texts stopped. A text already being sent at this moment may still arrive.',
           )
           setStopOpen(false)
         }}
       >
-        Takes effect immediately, including texts that haven’t gone out yet. You’ll still see
-        everything in the app.
+        Takes effect right away for this family, including texts that haven’t gone out yet (one
+        already being sent at that moment may still arrive). You’ll still see everything in the app.
       </ConfirmDialog>
     </section>
   )
@@ -487,10 +500,13 @@ function MyTexts({
 function OtherAdult({
   r,
   sms,
+  automatic,
   onMessage,
 }: {
   r: Recipient
   sms: { available: boolean; canStoreNumbers: boolean }
+  /** Test texts only while the family is in automatic mode. */
+  automatic: boolean
   onMessage: (m: Msg) => void
 }) {
   const router = useRouter()
@@ -547,7 +563,7 @@ function OtherAdult({
           </Button>
         )
       ) : null}
-      {sms.available && r.verified && !r.optedOut ? (
+      {sms.available && automatic && r.verified && !r.optedOut && r.autoSmsEnabled ? (
         <Button variant="secondary" size="md" onClick={() => setTestOpen(true)}>
           Send test text…
         </Button>

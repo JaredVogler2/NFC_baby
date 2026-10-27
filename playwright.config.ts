@@ -41,6 +41,8 @@ export default defineConfig({
       NFC_BABY_SILENT_LOGS: '1',
       APP_URL: `http://localhost:${PORT}`,
       SMS_PROVIDER: 'mock',
+      // Tests sign the same person in several times a minute (production default: 60 s).
+      AUTH_CODE_COOLDOWN_SECONDS: '2',
       MOCK_SMS_LOG_FILE: `${process.cwd()}/test-results/e2e-mock-sms.jsonl`,
       // Test-only token so signed-webhook handling can be exercised; never a real credential.
       TWILIO_AUTH_TOKEN: 'e2e-test-auth-token-not-real',

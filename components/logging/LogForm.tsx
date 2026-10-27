@@ -20,8 +20,10 @@ import {
   newRequestId,
   safeSessionStorage,
   saveSnapshot,
+  timerStorageKey,
   type FormState,
 } from '@/lib/logging/attempt'
+import { formatTime } from '@/lib/time/zoned'
 import { DraftLimitError, saveDraft } from '@/lib/offline/drafts'
 import { draftSummary } from '@/lib/offline/sync'
 import { KIND, KindBadge } from './kind'
@@ -49,7 +51,8 @@ export type LogFormProps = {
 
 export type FeedingSlotProps = {
   form: FormState
-  update: (patch: Partial<FormState>) => void
+  /** `quiet` updates (e.g. a ticking timer) don't clear messages or field errors. */
+  update: (patch: Partial<FormState>, quiet?: boolean) => void
   fieldErrors: Record<string, string>
   disabled: boolean
 }
@@ -65,8 +68,9 @@ type Status =
   | { kind: 'confirm_old'; message: string }
   | { kind: 'gone' }
   | { kind: 'error'; message: string }
-  | { kind: 'pending_saved' }
+  | { kind: 'pending_saved'; maybeSaved: boolean }
   | { kind: 'pending_failed'; message: string }
+  | { kind: 'saved' }
 
 const EMPTY_FORM: FormState = {
   whenMode: 'now',
@@ -129,6 +133,11 @@ export function LogForm(props: LogFormProps) {
   const busyRef = useRef(false)
   /** The exact body of the last Save tap, and when it happened (for a pending draft). */
   const lastAttempt = useRef<{ payload: CreateEventInput; tappedAt: number } | null>(null)
+  /**
+   * When Save was tapped for an attempt that couldn't be confirmed (offline, lost response,
+   * expired sign-in). Retries of that attempt keep this time instead of "now" at the retry.
+   */
+  const [pinnedAt, setPinnedAt] = useState<number | null>(null)
 
   // Restore an unsaved attempt for this same user (e.g. after signing in again).
   useEffect(() => {
@@ -138,23 +147,28 @@ export function LogForm(props: LogFormProps) {
       setForm(snap.form)
       setRequestId(snap.clientRequestId)
       setSent(snap.sent)
+      setPinnedAt(snap.tappedAt ?? null)
       setRestored(true)
     }
   }, [userId, formKey])
 
-  const update = useCallback(
-    (patch: Partial<FormState>) => {
-      setForm((f) => ({ ...f, ...patch }))
-      setFieldErrors({})
-      if (status.kind === 'not_saved' || status.kind === 'error' || status.kind === 'confirm_old') {
-        setStatus({ kind: 'idle' })
-      }
-    },
-    [status.kind],
-  )
+  // Stable identity: children (e.g. the nursing timer) may call it from effects.
+  const update = useCallback((patch: Partial<FormState>, quiet = false) => {
+    setForm((f) => ({ ...f, ...patch }))
+    if (quiet) return
+    setFieldErrors({})
+    setStatus((s) =>
+      s.kind === 'not_saved' || s.kind === 'error' || s.kind === 'confirm_old'
+        ? { kind: 'idle' }
+        : s,
+    )
+  }, [])
 
-  /** Resolve the time and build the request at the moment of Save (not at render). */
-  function buildPayload() {
+  /**
+   * Resolve the time and build the request at the moment of Save (not at render). "Now" is
+   * decided by the server, except for a retry of an unconfirmed attempt, which keeps `pinAt`.
+   */
+  function buildPayload(pinAt: number | null) {
     const when = resolveWhen(
       {
         mode: form.whenMode,
@@ -165,14 +179,17 @@ export function LogForm(props: LogFormProps) {
       timezone,
       Date.now(),
     )
+    const pinned = form.whenMode === 'now' && pinAt !== null ? new Date(pinAt).toISOString() : null
     return {
       whenError: when.error,
       payload: {
         clientRequestId: requestId,
         intent,
         tagToken: tagToken ?? undefined,
-        childId: tagToken ? undefined : child.id,
-        occurredAt: when.occurredAt ?? undefined,
+        // Always sent, also with a sticker: if the sticker was moved to another child since this
+        // form was shown, the server refuses instead of filing the entry under the wrong child.
+        childId: child.id,
+        occurredAt: pinned ?? when.occurredAt ?? undefined,
         confirmOld: form.confirmOld || undefined,
         notes: form.notes,
         feeding: intent === 'FEED' ? feedingFromForm(form) : undefined,
@@ -181,30 +198,53 @@ export function LogForm(props: LogFormProps) {
   }
 
   const persist = useCallback(
-    (wasSent: boolean) =>
+    (wasSent: boolean, tappedAt: number | null) =>
       saveSnapshot(safeSessionStorage(), {
         userId,
         formKey,
         clientRequestId: requestId,
         sent: wasSent,
+        tappedAt,
         form,
       }),
     [userId, formKey, requestId, form],
   )
 
+  const clearLocal = useCallback(() => {
+    clearSnapshot(safeSessionStorage(), userId, formKey)
+    // A nursing timer belongs to this entry only; never let it fill in the next one.
+    try {
+      sessionStorage.removeItem(timerStorageKey(formKey))
+    } catch {
+      // ignore
+    }
+  }, [userId, formKey])
+
   const finish = useCallback(
     (eventId: string) => {
-      clearSnapshot(safeSessionStorage(), userId, formKey)
+      clearLocal()
+      // Say so here first: if the details page can't load (signal lost), this stays on screen.
+      setStatus({ kind: 'saved' })
       // Replace: Back from the success screen must not return to a filled-in form.
       router.replace(`/saved/${eventId}`)
     },
-    [router, userId, formKey],
+    [router, clearLocal],
   )
+
+  /** Remember the Save time of an attempt we couldn't confirm, so retries keep it. */
+  const pin = useCallback(() => {
+    const at = lastAttempt.current?.tappedAt ?? null
+    if (at === null) return
+    setPinnedAt((p) => p ?? at)
+    persist(true, pinnedAt ?? at)
+  }, [persist, pinnedAt])
 
   /** After an uncertain failure, ask the server whether this exact attempt committed. */
   const checkStatus = useCallback(async (): Promise<'saved' | 'not_saved' | 'unknown'> => {
     setStatus({ kind: 'checking' })
     for (let attempt = 0; attempt < 3; attempt++) {
+      // Give a slow request that may still be committing a moment before asking.
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
       const res = await apiFetch<{ event: { id: string } }>(
         `/api/v1/events/by-request/${requestId}`,
         {
@@ -220,7 +260,6 @@ export function LogForm(props: LogFormProps) {
         setStatus({ kind: 'auth' })
         return 'unknown'
       }
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
     }
     setStatus({ kind: 'uncertain' })
     return 'unknown'
@@ -228,7 +267,7 @@ export function LogForm(props: LogFormProps) {
 
   async function save() {
     if (busyRef.current) return
-    const { whenError, payload } = buildPayload()
+    const { whenError, payload } = buildPayload(pinnedAt)
     if (whenError) {
       setFieldErrors({ occurredAt: whenError })
       return
@@ -244,10 +283,10 @@ export function LogForm(props: LogFormProps) {
       return
     }
     busyRef.current = true
-    lastAttempt.current = { payload, tappedAt: Date.now() }
+    lastAttempt.current = { payload, tappedAt: pinnedAt ?? Date.now() }
     setStatus({ kind: 'saving' })
     setFieldErrors({})
-    persist(true)
+    persist(true, pinnedAt)
     setSent(true)
     const res: ApiResult<{ event: { id: string } }> = await apiFetch('/api/v1/events', {
       method: 'POST',
@@ -259,21 +298,27 @@ export function LogForm(props: LogFormProps) {
       return
     }
     if (res.kind === 'offline') {
+      pin()
       setStatus({ kind: 'offline' })
       return
     }
-    if (isUncertainWriteFailure(res)) {
+    // A lost response, a proxy error or any server error after the request arrived: the entry may
+    // have been stored (and texts queued). Ask with the same id instead of claiming "not saved".
+    if (isUncertainWriteFailure(res) || (res.kind === 'http' && res.status >= 500)) {
+      pin()
       const outcome = await checkStatus()
       if (outcome === 'not_saved') {
         setStatus({
           kind: 'not_saved',
-          message: 'Not saved — check your connection and try again.',
+          message:
+            'Not saved yet. Try again when you have signal — it can’t create a second entry.',
         })
       }
       return
     }
     switch (res.code) {
       case 'UNAUTHENTICATED':
+        pin()
         setStatus({ kind: 'auth' })
         return
       case 'GONE':
@@ -308,10 +353,29 @@ export function LogForm(props: LogFormProps) {
   async function keepPending() {
     const attempt = lastAttempt.current
     if (!attempt || busyRef.current) return
+    // Offline means nothing was sent: keep what's on screen now (it may have been corrected), at
+    // the time Save was first tapped. After an unconfirmed send the form is locked, so the body
+    // must stay exactly what may already have reached the server.
+    let base = attempt.payload
+    if (status.kind === 'offline') {
+      const current = buildPayload(attempt.tappedAt)
+      const parsed = current.whenError ? null : createEventSchema.safeParse(current.payload)
+      if (!parsed?.success) {
+        setFieldErrors(
+          current.whenError
+            ? { occurredAt: current.whenError }
+            : Object.fromEntries(
+                (parsed?.error.issues ?? []).map((i) => [i.path.join('.'), i.message]),
+              ),
+        )
+        return
+      }
+      base = current.payload
+    }
     busyRef.current = true
     const payload: CreateEventInput = {
-      ...attempt.payload,
-      occurredAt: attempt.payload.occurredAt ?? new Date(attempt.tappedAt).toISOString(),
+      ...base,
+      occurredAt: base.occurredAt ?? new Date(attempt.tappedAt).toISOString(),
       offlineSync: true,
     }
     try {
@@ -332,8 +396,8 @@ export function LogForm(props: LogFormProps) {
         lastError: null,
         needsConfirmOld: false,
       })
-      clearSnapshot(safeSessionStorage(), userId, formKey)
-      setStatus({ kind: 'pending_saved' })
+      clearLocal()
+      setStatus({ kind: 'pending_saved', maybeSaved: status.kind === 'uncertain' })
     } catch (e) {
       setStatus({
         kind: 'pending_failed',
@@ -352,6 +416,7 @@ export function LogForm(props: LogFormProps) {
     saving ||
     status.kind === 'uncertain' ||
     status.kind === 'pending_saved' ||
+    status.kind === 'saved' ||
     (sent && status.kind === 'auth')
   const saveLabel = saveButtonLabel(intent, form)
 
@@ -388,9 +453,14 @@ export function LogForm(props: LogFormProps) {
         {props.topSlot}
 
         {restored ? (
-          <Banner tone="info" role="status" title="Your unsaved entry is back">
-            Review it and tap Save. Nothing was recorded yet
-            {sent ? ' unless we confirm it below' : ''}.
+          <Banner tone="info" role="status" title="Your entry is back">
+            Review it and tap Save.
+            {sent
+              ? ' If it already reached the server, Save just confirms it — it can’t be added twice.'
+              : ' Nothing was recorded yet.'}
+            {pinnedAt !== null && form.whenMode === 'now'
+              ? ` It keeps the time you first tapped Save (${formatTime(new Date(pinnedAt), timezone)}).`
+              : ''}
           </Banner>
         ) : null}
 
@@ -435,7 +505,10 @@ export function LogForm(props: LogFormProps) {
             void checkStatus().then(
               (o) =>
                 o === 'not_saved' &&
-                setStatus({ kind: 'not_saved', message: 'Not saved — try again.' }),
+                setStatus({
+                  kind: 'not_saved',
+                  message: 'Not saved yet. Trying again is safe — it can’t create a second entry.',
+                }),
             )
           }
           onConfirmOld={() => {
@@ -443,7 +516,7 @@ export function LogForm(props: LogFormProps) {
             setStatus({ kind: 'idle' })
           }}
           onKeepPending={() => void keepPending()}
-          beforeLogin={() => persist(sent)}
+          beforeLogin={() => persist(sent, pinnedAt ?? lastAttempt.current?.tappedAt ?? null)}
         />
       </main>
 
@@ -569,7 +642,31 @@ function StatusPanel({
           online, or tap Try again when you have signal.
         </Banner>
       ) : null}
-      {status.kind === 'pending_saved' ? (
+      {status.kind === 'saved' ? (
+        <Banner tone="success" role="status" title="Saved ✓">
+          It’s in the shared history. Opening the details…
+        </Banner>
+      ) : null}
+      {status.kind === 'pending_saved' && status.maybeSaved ? (
+        <Banner
+          tone="offline"
+          role="status"
+          title="Kept on this phone — may already be saved"
+          action={
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border-strong bg-surface px-4 font-semibold"
+            >
+              Done
+            </Link>
+          }
+        >
+          The connection dropped while saving, so it may already be in the shared history (and a
+          text may have gone out). When you’re back online, NFC Baby checks with the same id and
+          keeps exactly one entry.
+        </Banner>
+      ) : null}
+      {status.kind === 'pending_saved' && !status.maybeSaved ? (
         <Banner
           tone="offline"
           role="status"

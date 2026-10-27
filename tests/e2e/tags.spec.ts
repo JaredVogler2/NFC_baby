@@ -288,7 +288,7 @@ test.describe('scanning a sticker', () => {
     await page.getByLabel('Code').fill(await waitForCode(fam.parent.email, since))
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(new RegExp(`/t/${wet.token}$`))
-    await expect(page.getByText('Your unsaved entry is back')).toBeVisible()
+    await expect(page.getByText('Your entry is back')).toBeVisible()
     await expect(page.getByRole('textbox', { name: /Note/ })).toHaveValue('kept across sign-in')
     await page.getByRole('button', { name: 'Save wet diaper' }).click()
     await expect(page).toHaveURL(/\/saved\//)

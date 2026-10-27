@@ -151,7 +151,10 @@ export function PendingDrafts({
                       {d.payload.occurredAt
                         ? formatWhen(new Date(d.payload.occurredAt), timezone)
                         : ''}{' '}
-                      · Pending on this device
+                      ·{' '}
+                      {d.sentBefore
+                        ? 'May already be saved — checked with the same id when online'
+                        : 'Pending on this device'}
                     </p>
                     {d.lastError ? (
                       <p className="mt-1 text-[15px]" role="status">
@@ -232,7 +235,8 @@ export function PendingDrafts({
         {expired > 0 ? (
           <Banner tone="warning" title="Old pending entries removed">
             {expired === 1 ? '1 entry' : `${expired} entries`} waited on this phone for more than 7
-            days and {expired === 1 ? 'was' : 'were'} removed without being saved.
+            days and {expired === 1 ? 'was' : 'were'} removed from it. Anything that had already
+            reached the server is in History; the rest was not saved.
           </Banner>
         ) : null}
         {others > 0 ? (

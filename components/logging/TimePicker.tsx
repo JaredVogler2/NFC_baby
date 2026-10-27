@@ -48,12 +48,12 @@ export function resolveWhen(value: WhenValue, tz: string, now: number): Resolved
 
 export function presetValue(minutesAgo: number, tz: string, now = Date.now()): WhenValue {
   const at = new Date(now - minutesAgo * 60_000)
-  return {
-    mode: 'custom',
-    date: localDateKey(at, tz),
-    time: localTimeValue(at, tz),
-    ambiguityChoice: 0,
-  }
+  const date = localDateKey(at, tz)
+  const time = localTimeValue(at, tz)
+  // On the night clocks go back, 1:xx AM happens twice: pick the one that is actually "N min ago".
+  const candidates = localToUtcCandidates(date, time, tz)
+  const index = candidates.findIndex((c) => Math.abs(c.getTime() - at.getTime()) < 60_000)
+  return { mode: 'custom', date, time, ambiguityChoice: Math.max(0, index) }
 }
 
 const PRESETS = [5, 15, 30] as const
@@ -83,6 +83,7 @@ export function TimePicker({
           const p = presetValue(m, timezone, now)
           return (
             p.date === value.date &&
+            p.ambiguityChoice === value.ambiguityChoice &&
             Math.abs(timeToMinutes(p.time) - timeToMinutes(value.time)) <= 1
           )
         })

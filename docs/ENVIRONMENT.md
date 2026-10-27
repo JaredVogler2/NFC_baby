@@ -75,4 +75,5 @@ table (Production vs Preview, which are Sensitive) is in `docs/DEPLOYMENT.md` §
 | `CONTACT_ENCRYPTION_KEY` | before any phone number is saved | 32 random bytes, base64. AES-256-GCM for numbers + HMAC lookup. |
 | `CRON_SECRET` | for the daily text retry | ≥ 32 characters; dispatcher returns 404 when unset. |
 | `SMS_PROVIDER` | no (default `off`) | `twilio` only after DEPLOYMENT §4. `mock` is for tests and refuses to run on Vercel. |
+| `AUTH_CODE_COOLDOWN_SECONDS` | no (default `60`) | Seconds between sign-in code requests per address, same for members and strangers. |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` | only for automatic texts | The auth token also verifies Twilio's webhook signatures, so no separate `TWILIO_WEBHOOK_SECRET` is used. |

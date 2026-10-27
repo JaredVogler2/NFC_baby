@@ -117,6 +117,27 @@ async function processRow(
     return complete(admin, row.id, 'FAILED_PERMANENT', { reason: 'DECRYPT_FAILED' })
   }
 
+  // Last check right before sending: STOP, undo, preferences, quiet hours and mode may have
+  // changed since the row was queued or claimed; entries that happened long ago are not texted.
+  const { data: verdict, error: checkError } = await admin.rpc('outbox_send_check', {
+    p_id: row.id,
+  })
+  if (checkError) {
+    summary.failed++
+    return complete(admin, row.id, 'FAILED_RETRYABLE', {
+      reason: 'CHECK_FAILED',
+      nextAttemptAt: new Date(Date.now() + backoffSeconds(row.attempts) * 1000).toISOString(),
+    })
+  }
+  if (verdict !== 'ok') {
+    if (verdict === 'QUIET_HOURS') {
+      summary.canceled++
+      return complete(admin, row.id, 'SUPPRESSED', { reason: 'QUIET_HOURS' })
+    }
+    if (verdict === 'NOT_PROCESSING') return
+    return cancel(String(verdict))
+  }
+
   const outcome = await provider.send({ to, body, statusCallbackUrl: statusCallbackUrl(provider) })
   log.info('outbox.send', {
     provider: provider.name,
@@ -180,19 +201,22 @@ export async function dispatchOutbox(
   try {
     const admin = createSupabaseAdminClient()
     await admin.rpc('expire_outbox_leases')
-    const { data, error } = await admin.rpc('claim_outbox', {
-      p_event_id: opts.eventId ?? null,
-      p_limit: opts.limit ?? 10,
-      p_lease_seconds: 60,
-    })
-    if (error) {
-      log.error('outbox.claim_failed', { code: errorCode(error) })
-      return summary
-    }
-    const rows = (data ?? []) as ClaimedRow[]
-    summary.claimed = rows.length
     const provider = smsProvider()
-    for (const row of rows) {
+    // One row per claim: each lease (60 s) only has to cover a single send (≤ 10 s timeout), so a
+    // slow batch can never let a lease expire while its text is still being sent.
+    for (let i = 0; i < (opts.limit ?? 10); i++) {
+      const { data, error } = await admin.rpc('claim_outbox', {
+        p_event_id: opts.eventId ?? null,
+        p_limit: 1,
+        p_lease_seconds: 60,
+      })
+      if (error) {
+        log.error('outbox.claim_failed', { code: errorCode(error) })
+        break
+      }
+      const row = ((data ?? []) as ClaimedRow[])[0]
+      if (!row) break
+      summary.claimed++
       try {
         await processRow(admin, provider, row, summary)
       } catch (err) {

@@ -32,7 +32,8 @@ note or child name pasted anywhere.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | No email arrives | Supabase's built-in sender is rate-limited, or the email went to spam | Set up custom SMTP (DEPLOYMENT §1.6). Check spam. Wait 60 s before asking again. |
-| "Too many requests" | The per-address resend limit | Wait a minute. |
+| "Too many requests" | The per-address resend limit (one code per minute per address) | Wait a minute. |
+| Nobody in the family can get a code; it keeps saying "Too many requests" or "temporarily unavailable" | Supabase's per-IP auth limits are shared by everyone using the site (requests come from the site's server), possibly exhausted by someone else | Wait up to an hour, or raise the limits in Supabase → Authentication → Rate Limits. Don't enable Supabase CAPTCHA without a code change: codes are requested server-side. |
 | Code rejected | Expired, already used, or an older email's code | Use the newest email's code. Codes expire (15–60 min, per Supabase setting). |
 | Email link says "tap to finish" | By design: link scanners in mail apps can't use it up | Tap **Finish signing in**, or type the code. |
 | Link opens an error page | Supabase **Site URL** isn't the production URL | Supabase → Authentication → URL Configuration → Site URL = `APP_URL`. |

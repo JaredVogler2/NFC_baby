@@ -84,7 +84,7 @@ export function LogScreen({
               entry stays pending here until you’re back online — nothing is shared or texted yet.
             </p>
           ) : null}
-          {offline ? null : <PendingNotice userId={userId} />}
+          {offline ? null : <PendingNotice userId={userId} householdId={householdId} />}
           {scanTest && !offline ? (
             <ScanTestPanel
               tagId={scanTest.tagId}

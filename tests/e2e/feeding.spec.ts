@@ -208,7 +208,7 @@ test('H: editing the amount after a text was sent corrects history, warns, and s
 
   await page.goto(`/history/${eventId}`)
   await page.getByRole('button', { name: 'Edit' }).click()
-  await expect(page.getByText('A text was already sent for this entry')).toBeVisible()
+  await expect(page.getByText('A text may already have been sent for this entry')).toBeVisible()
   await page.getByLabel(/Custom amount/).fill('3.5')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('Changes saved')).toBeVisible()

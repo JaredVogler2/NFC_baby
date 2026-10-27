@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { requireApiMember } from '@/lib/auth/member'
 import { activeChildren } from '@/lib/db/context'
-import { listEvents } from '@/lib/db/events'
+import { listAllEvents } from '@/lib/db/events'
 import type { CareEvent } from '@/lib/domain/event'
 import { eventsToCsv } from '@/lib/export/events'
 import { apiRoute, NO_STORE_HEADERS, parseQuery } from '@/lib/http/server'
@@ -14,22 +14,7 @@ export const GET = apiRoute('/api/v1/export', async (request) => {
     z.object({ format: z.enum(['csv', 'json']).default('csv') }),
   )
   const events: CareEvent[] = []
-  for (const child of ctx.children) {
-    let cursor: string | null = null
-    do {
-      const page = await listEvents(supabase, {
-        childId: child.id,
-        intents: null,
-        from: null,
-        to: null,
-        includeVoided: true,
-        cursor,
-        limit: 200,
-      })
-      events.push(...page.events)
-      cursor = page.nextCursor
-    } while (cursor)
-  }
+  for (const child of ctx.children) events.push(...(await listAllEvents(supabase, child.id)))
   const stamp = new Date().toISOString().slice(0, 10)
   const names = new Map(ctx.children.map((c) => [c.id, c.nickname]))
   const headers = { ...NO_STORE_HEADERS, 'X-Content-Type-Options': 'nosniff' }
