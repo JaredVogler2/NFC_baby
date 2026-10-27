@@ -34,6 +34,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Secret scan (repository + browser build)
+        run: npm run check:secrets
       - name: Dependency advisories (report only)
         run: npm audit --omit=dev --audit-level=high || true
       - name: Smoke E2E (no database)
@@ -56,8 +58,12 @@ jobs:
         run: npm run db:start
       - name: Write .env.local for the local stack (public demo keys only)
         run: node scripts/write-local-env.mjs
+      - name: Lint SQL functions (plpgsql_check; warnings fail)
+        run: npm run db:lint
       - run: npm run test:integration
       - run: npm run build
+      - name: Secret scan incl. server-only values from .env.local
+        run: npm run check:secrets
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - name: Upload Playwright report

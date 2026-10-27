@@ -6,12 +6,15 @@ import { LiveRefresh } from '@/components/layout/LiveRefresh'
 import { QuickLog } from '@/components/dashboard/QuickLog'
 import { SinceCard } from '@/components/dashboard/SinceCard'
 import { EventRow } from '@/components/logging/EventRow'
+import { PendingDrafts } from '@/components/offline/PendingDrafts'
+import { RememberOfflineContext } from '@/components/offline/RememberOfflineContext'
 import { Card, EmptyState, SectionTitle } from '@/components/ui/primitives'
 import { requirePageMember } from '@/lib/auth/member'
 import { activeChildren, pickChild } from '@/lib/db/context'
 import { getDashboard } from '@/lib/db/events'
 import { can } from '@/lib/domain/intents'
 import { formatVolume } from '@/lib/domain/units'
+import { scheduleDueRetries } from '@/lib/notifications/dispatch-hook'
 import { unitPreference } from '@/lib/prefs'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -31,11 +34,13 @@ export default async function DashboardPage({
   if (!child) {
     return (
       <AppShell title="Home">
-        <EmptyState title="No child profile yet">Add one in Settings → Family.</EmptyState>
+        <EmptyState title="No child profile yet">Add one in Settings → Family & baby.</EmptyState>
       </AppShell>
     )
   }
   const d = await getDashboard(supabase, child.id)
+  // Retry any due texts in the background whenever someone opens Home (Hobby cron is daily).
+  if (ctx.household.notificationMode === 'AUTOMATIC') scheduleDueRetries()
   const childQuery = children.length > 1 ? `?child=${child.id}` : ''
 
   return (
@@ -84,6 +89,8 @@ export default async function DashboardPage({
           />
         </div>
 
+        <PendingDrafts userId={ctx.userId} householdId={ctx.membership.householdId} timezone={tz} />
+
         {can.log(ctx.membership.role) ? <QuickLog childQuery={childQuery} /> : null}
 
         <section aria-labelledby="recent" className="flex flex-col gap-2">
@@ -130,6 +137,15 @@ export default async function DashboardPage({
           </p>
         </details>
       </div>
+      <RememberOfflineContext
+        userId={ctx.userId}
+        householdId={ctx.membership.householdId}
+        canLog={can.log(ctx.membership.role)}
+        timezone={tz}
+        volumeUnit={ctx.household.defaultVolumeUnit}
+        defaultFeedMethod={ctx.household.defaultFeedMethod}
+        childList={children.map((c) => ({ id: c.id, nickname: c.nickname }))}
+      />
     </AppShell>
   )
 }

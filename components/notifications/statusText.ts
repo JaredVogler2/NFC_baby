@@ -12,17 +12,30 @@ export function recipientStatusText(state: OutboxState, reason: string | null): 
     case 'DELIVERED':
       return 'delivered (reported by the carrier)'
     case 'FAILED_RETRYABLE':
-      return 'not sent yet — will retry'
+      return 'not sent yet — tried again when someone opens Home (or within a day)'
     case 'FAILED_PERMANENT':
       return reason === 'OPTED_OUT' ? 'not sent — this number replied STOP' : 'not sent — failed'
     case 'UNKNOWN':
       return 'unknown — the provider did not confirm; it will not be re-sent automatically'
     case 'CANCELED':
-      return reason === 'EVENT_VOIDED'
-        ? 'not sent — entry was undone first'
-        : reason === 'STALE'
-          ? 'not sent — too late to be useful'
-          : 'not sent — canceled'
+      switch (reason) {
+        case 'EVENT_VOIDED':
+          return 'not sent — entry was undone first'
+        case 'STALE':
+          return 'not sent — too late to be useful'
+        case 'OPTED_OUT':
+          return 'not sent — texts were stopped for this number'
+        case 'PREFS_OFF':
+        case 'CATEGORY_OFF':
+        case 'OWN_ENTRY':
+          return 'not sent — turned off in their text settings'
+        case 'MODE_OFF':
+          return 'not sent — automatic texts were turned off'
+        case 'MEMBER_DISABLED':
+          return 'not sent — no longer receives texts'
+        default:
+          return 'not sent — canceled'
+      }
     case 'SUPPRESSED':
       return reason === 'QUIET_HOURS'
         ? 'not texted — quiet hours'

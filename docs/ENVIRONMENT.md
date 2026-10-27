@@ -61,3 +61,19 @@ These names are recommended starting points, not evidence that an integration is
 - [ ] Test requested notification mode on both real phones
 - [ ] Verify no secrets/phones leaked in Git, frontend bundle, logs
 - [ ] Data export, support/recovery instructions ready
+
+## As implemented in this repository
+The final variable list is validated in `lib/env/server.ts` and `lib/env/public.ts`; the per-scope
+table (Production vs Preview, which are Sensitive) is in `docs/DEPLOYMENT.md` §2.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Without them every page shows "Setup needed". Built into the page code: redeploy after changing. |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes | First-owner setup, invites, text dispatch. Server only. |
+| `APP_URL` | yes in production | Exact HTTPS origin written onto stickers and into emails/texts. |
+| `BOOTSTRAP_OWNER_EMAIL` | for first setup | The only address that may create the family (once). |
+| `CONTACT_ENCRYPTION_KEY` | before any phone number is saved | 32 random bytes, base64. AES-256-GCM for numbers + HMAC lookup. |
+| `CRON_SECRET` | for the daily text retry | ≥ 32 characters; dispatcher returns 404 when unset. |
+| `SMS_PROVIDER` | no (default `off`) | `twilio` only after DEPLOYMENT §4. `mock` is for tests and refuses to run on Vercel. |
+| `AUTH_CODE_COOLDOWN_SECONDS` | no (default `60`) | Seconds between sign-in code requests per address, same for members and strangers. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` | only for automatic texts | The auth token also verifies Twilio's webhook signatures, so no separate `TWILIO_WEBHOOK_SECRET` is used. |

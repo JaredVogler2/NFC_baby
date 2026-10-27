@@ -33,6 +33,8 @@ export type AttemptSnapshot = {
   clientRequestId: string
   /** True once a POST with this id may have reached the server. */
   sent: boolean
+  /** When Save was tapped for an attempt that couldn't be confirmed: retries keep this time. */
+  tappedAt?: number | null
   form: FormState
   savedAt: number
 }
@@ -96,6 +98,11 @@ export function clearSnapshot(storage: StorageLike | null, userId: string, formK
   } catch {
     // ignore
   }
+}
+
+/** sessionStorage key of a form's running nursing timer (cleared once the entry is saved). */
+export function timerStorageKey(formKey: string) {
+  return `nfcb:timer:${formKey}`
 }
 
 export function safeSessionStorage(): StorageLike | null {

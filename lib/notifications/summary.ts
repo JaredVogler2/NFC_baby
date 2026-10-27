@@ -56,8 +56,10 @@ export async function buildNotificationSummary(
   }))
   const mode = ctx.household.notificationMode
   const queued = recipients.some((r) => r.state !== 'SUPPRESSED' && r.state !== 'CANCELED')
+  // Offer a draft to share only when nothing was (or may have been) texted automatically: if the
+  // family later switched mode, the earlier texts still count and must not be sent again by hand.
   const wantsDraft =
-    event.state === 'ACTIVE' && (mode === 'COMPOSE' || (mode === 'AUTOMATIC' && !queued))
+    event.state === 'ACTIVE' && !queued && (mode === 'COMPOSE' || mode === 'AUTOMATIC')
   return {
     mode,
     draftText: wantsDraft

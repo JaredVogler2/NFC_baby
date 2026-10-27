@@ -98,11 +98,17 @@ export type ListParams = {
   limit: number
 }
 
+/** Largest page whose look-ahead row still fits under list_care_events' 200-row cap. */
+export const MAX_PAGE = 199
+
 export async function listEvents(
   supabase: ServerSupabase,
   p: ListParams,
 ): Promise<{ events: CareEvent[]; nextCursor: string | null }> {
   const cursor = p.cursor ? decodeCursor(p.cursor) : null
+  // The SQL function returns at most 200 rows; ask for one fewer than that so the extra row that
+  // signals "there is more" always fits (otherwise a 200-row page ends the export early).
+  const limit = Math.min(p.limit, MAX_PAGE)
   const { data, error } = await supabase.rpc('list_care_events', {
     p_child_id: p.childId,
     p_intents: p.intents,
@@ -112,13 +118,36 @@ export async function listEvents(
     p_before_occurred: cursor?.occurredAt ?? null,
     p_before_created: cursor?.createdAt ?? null,
     p_before_id: cursor?.id ?? null,
-    p_limit: p.limit + 1,
+    p_limit: limit + 1,
   })
   if (error) throw toApiError(error, 'list_care_events')
   const rows = (data as Record<string, unknown>[]).map(toCareEvent)
-  const page = rows.slice(0, p.limit)
+  const page = rows.slice(0, limit)
   const last = page.at(-1)
-  return { events: page, nextCursor: rows.length > p.limit && last ? encodeCursor(last) : null }
+  return { events: page, nextCursor: rows.length > limit && last ? encodeCursor(last) : null }
+}
+
+/** Every entry of one child (including undone ones), newest first — for export. */
+export async function listAllEvents(
+  supabase: ServerSupabase,
+  childId: string,
+): Promise<CareEvent[]> {
+  const events: CareEvent[] = []
+  let cursor: string | null = null
+  do {
+    const page = await listEvents(supabase, {
+      childId,
+      intents: null,
+      from: null,
+      to: null,
+      includeVoided: true,
+      cursor,
+      limit: MAX_PAGE,
+    })
+    events.push(...page.events)
+    cursor = page.nextCursor
+  } while (cursor)
+  return events
 }
 
 export type DashboardData = {
@@ -222,7 +251,11 @@ export async function getFeedSuggestions(supabase: ServerSupabase, childId: stri
 }
 
 /** "Repeat last feed": the latest active feeding as visible form values (never auto-saved). */
-export async function lastFeedAsForm(supabase: ServerSupabase, childId: string) {
+export async function lastFeedAsForm(
+  supabase: ServerSupabase,
+  childId: string,
+  fallbackUnit: 'oz' | 'ml',
+) {
   const { data, error } = await supabase
     .from('care_event_list')
     .select(
@@ -242,7 +275,7 @@ export async function lastFeedAsForm(supabase: ServerSupabase, childId: string) 
     milkType: bottle ? (data.milk_type as 'BREASTMILK' | 'FORMULA' | 'OTHER' | 'UNKNOWN') : null,
     amount:
       bottle && data.amount_entered_value !== null ? String(Number(data.amount_entered_value)) : '',
-    amountUnit: (data.amount_entered_unit as 'oz' | 'ml' | null) ?? 'oz',
+    amountUnit: (data.amount_entered_unit as 'oz' | 'ml' | null) ?? fallbackUnit,
     amountUnknown: bottle ? Boolean(data.amount_unknown) : false,
     side: bottle ? null : ((data.side as 'LEFT' | 'RIGHT' | 'BOTH' | 'UNKNOWN' | null) ?? null),
     durationMinutes:

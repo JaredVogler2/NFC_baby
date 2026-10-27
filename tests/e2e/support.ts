@@ -38,7 +38,9 @@ export function sqlNumber(query: string): number {
 
 /** Wipe all family data and auth users (E2E only; never against a real project). */
 export async function resetAll() {
-  sql("set nfcb.allow_purge = 'on'; truncate public.households cascade; delete from auth.users;")
+  sql(
+    "set nfcb.allow_purge = 'on'; truncate public.households cascade; delete from auth.users; truncate public.notification_phone_opt_outs, public.auth_code_requests;",
+  )
   await fetch(`${MAILPIT}/api/v1/messages`, { method: 'DELETE' })
 }
 

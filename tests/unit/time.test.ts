@@ -104,3 +104,21 @@ describe('UTC → family display', () => {
     expect(formatElapsed(now - 51 * 3_600_000, now)).toBe('2 d 3 h ago')
   })
 })
+
+describe('time presets on the night clocks go back', () => {
+  it('"15 min ago" at 1:20 AM EST picks the second 1:05 AM (EST), not the hour-earlier EDT one', async () => {
+    const { presetValue, resolveWhen } = await import('@/components/logging/TimePicker')
+    const now = Date.parse('2026-11-01T06:20:00Z') // 1:20 AM EST, after the fall-back
+    const value = presetValue(15, 'America/New_York', now)
+    expect(value).toMatchObject({ date: '2026-11-01', time: '01:05', ambiguityChoice: 1 })
+    expect(resolveWhen(value, 'America/New_York', now).occurredAt).toBe('2026-11-01T06:05:00.000Z')
+  })
+
+  it('"15 min ago" at 1:20 AM EDT (first pass) picks the first 1:05 AM', async () => {
+    const { presetValue, resolveWhen } = await import('@/components/logging/TimePicker')
+    const now = Date.parse('2026-11-01T05:20:00Z') // 1:20 AM EDT, before the fall-back
+    const value = presetValue(15, 'America/New_York', now)
+    expect(value.ambiguityChoice).toBe(0)
+    expect(resolveWhen(value, 'America/New_York', now).occurredAt).toBe('2026-11-01T05:05:00.000Z')
+  })
+})

@@ -72,3 +72,87 @@ Apple SMS URL scheme: https://developer.apple.com/library/archive/featuredarticl
 | One recipient provider fails | Event saved; other recipient independent; exact state displayed |
 | Parent voids already texted event | History corrected; old SMS not recalled, UI warns |
 | Missing provider credentials | Provider disabled/clear error; in-app and compose continue to work |
+
+---
+
+## Implementation in this repository (phase 08)
+
+### Where it lives
+| Piece | Location |
+|---|---|
+| Family mode OFF / COMPOSE / AUTOMATIC (owner) | Settings → Texts & notifications · `POST /api/v1/notifications/mode` |
+| Own number, consent, SMS verification code, categories, quiet hours, stop | same screen · `/api/v1/notifications/contact*`, `/preferences` |
+| Share / Copy / Open Messages / Run Shortcut after saving | `components/notifications/ShareActions.tsx` |
+| Message text (no child name, no notes) | `lib/notifications/template.ts` |
+| Outbox rows (created in the same transaction as the entry) | `log_care_event` → `_enqueue_notifications` (migration 0003) |
+| Dispatcher (lease, retries, staleness, UNKNOWN) | `lib/notifications/dispatch.ts`, SQL in migration 0005 |
+| Provider adapters | `lib/notifications/providers/` — `off` (default), `mock` (tests; refuses on Vercel), `twilio` (REST, no SDK) |
+| Webhooks (signature-verified) | `/api/v1/notifications/twilio/status`, `/api/v1/notifications/twilio/inbound` |
+| Retry endpoint for a scheduler | `GET/POST /api/v1/notifications/dispatch` with `Authorization: Bearer $CRON_SECRET` |
+
+### Who gets an automatic text
+All must be true at the moment an entry is saved: family mode is AUTOMATIC; the recipient is an
+active **owner or parent** (never caregivers/viewers); they saved a number, ticked the consent text
+(versioned, stored with the timestamp) and entered the code texted to that number; they have not
+stopped texts (in the app or by replying STOP); the entry's kind is in their categories; and it's
+not their quiet hours (then the row is recorded as "not texted — quiet hours" and is never sent
+later). One logical text per entry per recipient (`unique(event_id, user_id, channel, revision)`).
+
+### What the states mean (shown per parent on the saved screen and entry details)
+| State | Meaning |
+|---|---|
+| queued | waiting to be handed to the provider (normally < 2 s) |
+| sent to the text provider | the provider accepted it — **not** proof of delivery |
+| delivered | the carrier reported delivery (Twilio status callback) |
+| not sent yet — tried again when someone opens Home (or within a day) | provider temporarily refused (rate limit / 503). It becomes due again after 30 s, 2 min, 10 min (+jitter), max 4 tries, and is actually retried the next time someone opens Home or the scheduler runs — and only while the entry is < 30 min old |
+| not sent — failed | permanent refusal (invalid number, carrier failure, too many tries) |
+| unknown | we sent the request but never got an answer (timeout). **Never resent automatically** — avoids double texts |
+| not texted — quiet hours / too many texts this hour | suppressed by preference / 20-per-hour safety ceiling |
+| not sent — entry was undone first / too late to be useful | canceled before sending (void; queued > 30 min ago; or the entry itself happened > 1 h ago, e.g. an offline entry synced later or a backfill — so enabling automatic mode can never send a backlog) |
+| not sent — texts were stopped / turned off in their text settings / automatic texts were turned off | re-checked immediately before sending: a STOP, a preference change or a mode change after the entry was saved is honoured |
+
+### Owner setup for automatic texts (EXTERNAL SETUP — not done by the build)
+1. Twilio account → buy a US number → create a **Messaging Service** containing it.
+2. Register for **A2P 10DLC** (Brand + "Low volume mixed" or similar campaign) — required for US
+   long-code application texting even for a family. Describe it honestly: "Family baby-care
+   updates to 2 opted-in parents; opt-in by entering a code texted to their number in the app;
+   STOP/HELP supported." Wait for approval. (Toll-free verification is the alternative route.)
+3. In the Messaging Service, keep **Advanced Opt-Out** on (handles STOP/HELP replies) and set the
+   **incoming message webhook** to `https://YOUR_DOMAIN/api/v1/notifications/twilio/inbound`.
+   Status callbacks are requested per message automatically when `APP_URL` is HTTPS.
+4. Vercel → Environment Variables (Production only): `SMS_PROVIDER=twilio`,
+   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID`,
+   `CONTACT_ENCRYPTION_KEY` (32 random bytes, base64), `APP_URL`. Redeploy.
+5. Owner: Settings → Texts & notifications → Automatic texts. Each parent, **on their own phone**:
+   add number → read and tick the consent text → "Text me a verification code" → enter it.
+6. Owner: "Send test text…" to each verified parent (one message, confirmed). Ask each parent
+   whether it arrived. Only after both confirm real receipt may anyone say automatic texting works.
+7. Optional: point any scheduler at `/api/v1/notifications/dispatch` with the bearer secret every
+   few minutes to retry temporarily-failed texts promptly. Without it, retries happen when someone
+   opens Home (a save only sends that entry's own texts), plus the once-a-day Vercel cron in
+   `vercel.json`.
+
+Numbers: only US/Canadian (+1) mobile numbers are accepted. Verification codes are limited to one
+per minute and five per 24 h per person, and five per 24 h per number — limits that survive
+removing and re-adding a number. A number that replied STOP can't be verified again until it
+replies START.
+
+### Option 2 setup — "NFC Baby Notify" Shortcut (per iPhone, NEEDS HUMAN DEVICE testing)
+1. Shortcuts app → **+** → name it exactly **NFC Baby Notify**.
+2. Add action **Send Message**. Tap *Message* → choose **Shortcut Input**. Tap *Recipients* → pick
+   both parents from Contacts (numbers stay on the phone; the app never sees them).
+3. Shortcut settings (ⓘ) → enable **Receive "Text" input**; optionally turn off "Show When Run"
+   only after you have tested it.
+4. In NFC Baby: Settings → This phone → tick "I installed the NFC Baby Notify Shortcut".
+5. Save an entry → **Run "NFC Baby Notify"**. iOS asks for permission the first time. Messages
+   either shows a draft or sends, depending on the action's "Show compose sheet" setting and the
+   iOS version. Check both recipients received it before relying on it.
+The app only opens `shortcuts://run-shortcut?name=NFC%20Baby%20Notify&input=text&text=…` from your
+tap; it never runs it on page load and never reports it as delivered.
+
+### Verified here vs. still to verify
+- ✔ Automated (mock provider + real Postgres): two separate texts, opt-out, STOP webhook, signed
+  status callback, one-recipient failure isolation, unknown-not-resent, retries/backoff, void/stale
+  cancellation, no backlog on enabling, concurrent dispatchers, no plaintext numbers, compose draft.
+- ✖ NOT verified: any real Twilio send, carrier delivery, A2P approval, iOS Share sheet, Messages
+  `sms:` behaviour on a real iPhone, the Shortcut. These are EXTERNAL SETUP / NEEDS HUMAN DEVICE.

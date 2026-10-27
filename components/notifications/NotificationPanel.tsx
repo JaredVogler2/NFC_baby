@@ -1,18 +1,39 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import { apiFetch } from '@/lib/http/client'
 import type { NotificationSummary } from '@/lib/notifications/summary'
 import { Banner } from '@/components/ui/primitives'
 import { ShareActions } from './ShareActions'
 import { recipientStatusText } from './statusText'
 
 /** Parent-notification state, always shown separately from "Saved". */
+const IN_FLIGHT = new Set(['PENDING', 'PROCESSING'])
+
 export function NotificationPanel({
-  summary,
+  summary: initial,
   voided,
+  eventId,
 }: {
   summary: NotificationSummary
   voided?: boolean
+  eventId?: string
 }) {
+  const [summary, setSummary] = useState(initial)
+  const tries = useRef(0)
+  const inFlight = summary.recipients.some((r) => IN_FLIGHT.has(r.state))
+  // While texts are queued/sending, poll briefly (≤ 20 tries in total) so the screen shows what
+  // the provider said.
+  useEffect(() => {
+    if (!eventId || !inFlight) return
+    const timer = setInterval(async () => {
+      tries.current++
+      if (tries.current > 20) return clearInterval(timer)
+      const res = await apiFetch<{ notification: NotificationSummary }>(`/api/v1/events/${eventId}`)
+      if (res.ok) setSummary(res.data.notification)
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [eventId, inFlight])
   const automatic = summary.recipients.filter(
     (r) => r.state !== 'SUPPRESSED' && r.state !== 'CANCELED',
   )
@@ -29,12 +50,12 @@ export function NotificationPanel({
           Texts can’t be recalled. The entry is corrected in History for everyone.
         </Banner>
       ) : null}
-      {summary.mode === 'OFF' ? (
+      {summary.mode === 'OFF' && !summary.recipients.length ? (
         <p className="text-[15px]">
           Texts are off. Everyone in the family sees this entry in History.
         </p>
       ) : null}
-      {summary.mode === 'AUTOMATIC' && summary.recipients.length ? (
+      {summary.recipients.length ? (
         <div className="flex flex-col gap-1">
           <p className="font-semibold">
             {automatic.length ? 'Saved. Automatic texts:' : 'Saved. No automatic text was queued:'}

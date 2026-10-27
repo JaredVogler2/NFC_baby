@@ -91,7 +91,6 @@ export default async function HistoryPage({
           <Link
             href={href({ voided: includeVoided ? null : '1' })}
             className="inline-flex min-h-11 items-center rounded-xl px-2 text-[15px] font-semibold text-muted underline-offset-4 hover:underline"
-            aria-pressed={includeVoided}
           >
             {includeVoided ? 'Hide undone entries' : 'Show undone entries'}
           </Link>

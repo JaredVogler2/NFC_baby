@@ -15,8 +15,16 @@ const securityHeaders = [
   { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
 ]
 
+// Versions the service worker's caches: a new deployment installs a new worker and drops old caches.
+const buildId = (
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  Date.now().toString(36)
+).slice(0, 12)
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  env: { NEXT_PUBLIC_BUILD_ID: buildId },
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   async headers() {

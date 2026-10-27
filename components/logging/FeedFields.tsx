@@ -5,7 +5,7 @@ import { BottleIcon, NursingIcon } from '@/components/icons'
 import { Checkbox, Chip, Segmented } from '@/components/ui/form'
 import { Banner } from '@/components/ui/primitives'
 import { ML_PRESETS, OZ_PRESETS, mlToOz, ozToMl, parseAmount } from '@/lib/domain/units'
-import type { FormState } from '@/lib/logging/attempt'
+import { timerStorageKey, type FormState } from '@/lib/logging/attempt'
 import { useNow } from '@/lib/hooks/useNow'
 import { presetValue } from './TimePicker'
 
@@ -134,8 +134,12 @@ export function FeedFields({
           ) : null}
 
           <fieldset className="flex flex-col gap-2" disabled={disabled}>
+            {/* The legend must be the fieldset's first child to name the group. */}
+            <legend className="sr-only">Amount</legend>
             <div className="flex items-center justify-between gap-3">
-              <legend className="text-[15px] font-semibold">Amount</legend>
+              <span aria-hidden="true" className="text-[15px] font-semibold">
+                Amount
+              </span>
               <div className="w-28">
                 <Segmented
                   legend="Unit"
@@ -299,10 +303,10 @@ function NursingTimer({
   timezone,
 }: {
   storageKey: string
-  update: (patch: Partial<FormState>) => void
+  update: (patch: Partial<FormState>, quiet?: boolean) => void
   timezone: string
 }) {
-  const key = `nfcb:timer:${storageKey}`
+  const key = timerStorageKey(storageKey)
   const now = useNow()
   const [startedAt, setStartedAt] = useState<number | null>(null)
 
@@ -319,7 +323,8 @@ function NursingTimer({
   const minutes = startedAt && now ? Math.max(0, Math.floor((now - startedAt) / 60_000)) : 0
 
   useEffect(() => {
-    if (startedAt) update({ durationMinutes: String(Math.max(1, minutes)) })
+    // Quiet: a ticking timer must not clear "Not saved" or other messages on the form.
+    if (startedAt) update({ durationMinutes: String(Math.max(1, minutes)) }, true)
   }, [startedAt, minutes, update])
 
   if (!startedAt) {
@@ -341,7 +346,7 @@ function NursingTimer({
             whenMode: 'custom',
             date: at.date,
             time: at.time,
-            ambiguityChoice: 0,
+            ambiguityChoice: at.ambiguityChoice,
             durationMinutes: '1',
           })
         }}

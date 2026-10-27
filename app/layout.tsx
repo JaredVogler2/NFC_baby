@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import type { ReactNode } from 'react'
+import { BackForwardGuard } from '@/components/layout/BackForwardGuard'
+import { ServiceWorkerRegistrar } from '@/components/offline/ServiceWorkerRegistrar'
 import { THEME_COOKIE, parseTheme } from '@/lib/theme'
 import './globals.css'
 
@@ -12,6 +14,13 @@ export const metadata: Metadata = {
   referrer: 'same-origin',
   formatDetection: { telephone: false, email: false, address: false },
   appleWebApp: { capable: true, title: 'NFC Baby', statusBarStyle: 'default' },
+  icons: {
+    icon: [
+      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
+  },
 }
 
 export const viewport: Viewport = {
@@ -36,6 +45,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           Skip to content
         </a>
         {children}
+        <ServiceWorkerRegistrar />
+        <BackForwardGuard />
       </body>
     </html>
   )
