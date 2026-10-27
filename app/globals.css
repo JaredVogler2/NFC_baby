@@ -1,0 +1,268 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Day = warm paper; Night = warm near-black with dimmed accents so a 2 AM
+ * screen does not light up the nursery. Every text/background pair used by components is
+ * checked for WCAG AA contrast in tests/unit/design-tokens.test.ts.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f7f4ef;
+  --surface: #ffffff;
+  --surface-2: #f0ebe3;
+  --border: #ded7cb;
+  --border-strong: #8a8174;
+  --text: #1f2328;
+  --text-muted: #565d68;
+  --focus: #1d5c63;
+
+  --primary: #1d5c63;
+  --primary-fg: #ffffff;
+  --primary-tint: #e2efef;
+
+  --danger: #a8261d;
+  --danger-fg: #ffffff;
+  --danger-tint: #f8e4e1;
+  --danger-ink: #a8261d;
+  --success: #276b45;
+  --success-tint: #e3f1e8;
+  --warning: #7a4f0f;
+  --warning-tint: #f8ecd6;
+
+  --wet: #235d9f;
+  --wet-fg: #ffffff;
+  --wet-tint: #e5eef9;
+  --wet-ink: #1c4a80;
+  --poop: #7d5212;
+  --poop-fg: #ffffff;
+  --poop-tint: #f6ecdb;
+  --poop-ink: #6b4510;
+  --both: #634299;
+  --both-fg: #ffffff;
+  --both-tint: #eee8f8;
+  --both-ink: #553886;
+  --feed: #2a6e47;
+  --feed-fg: #ffffff;
+  --feed-tint: #e4f2ea;
+  --feed-ink: #235c3b;
+
+  --shadow: 0 1px 2px rgb(31 35 40 / 0.06), 0 4px 16px rgb(31 35 40 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0f0e0d;
+    --surface: #181614;
+    --surface-2: #221f1c;
+    --border: #2f2b27;
+    --border-strong: #756e65;
+    --text: #e6e0d6;
+    --text-muted: #a39b8f;
+    --focus: #8fc7c9;
+
+    --primary: #1f4a4f;
+    --primary-fg: #d7eeee;
+    --primary-tint: #142a2c;
+
+    --danger: #5c1c17;
+    --danger-fg: #f6d6d2;
+    --danger-tint: #2a1513;
+    --danger-ink: #f0a49c;
+    --success: #8fcfa8;
+    --success-tint: #13241a;
+    --warning: #e3c48f;
+    --warning-tint: #2a2114;
+
+    --wet: #1d3857;
+    --wet-fg: #d3e3f6;
+    --wet-tint: #141e2a;
+    --wet-ink: #9cc0ea;
+    --poop: #4a3412;
+    --poop-fg: #f3dfbd;
+    --poop-tint: #211a11;
+    --poop-ink: #ddb57a;
+    --both: #36285a;
+    --both-fg: #e2d8f7;
+    --both-tint: #1c1727;
+    --both-ink: #c4b2ec;
+    --feed: #1d4430;
+    --feed-fg: #cdebd9;
+    --feed-tint: #131f18;
+    --feed-ink: #93d2ad;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f0e0d;
+  --surface: #181614;
+  --surface-2: #221f1c;
+  --border: #2f2b27;
+  --border-strong: #756e65;
+  --text: #e6e0d6;
+  --text-muted: #a39b8f;
+  --focus: #8fc7c9;
+
+  --primary: #1f4a4f;
+  --primary-fg: #d7eeee;
+  --primary-tint: #142a2c;
+
+  --danger: #5c1c17;
+  --danger-fg: #f6d6d2;
+  --danger-tint: #2a1513;
+  --danger-ink: #f0a49c;
+  --success: #8fcfa8;
+  --success-tint: #13241a;
+  --warning: #e3c48f;
+  --warning-tint: #2a2114;
+
+  --wet: #1d3857;
+  --wet-fg: #d3e3f6;
+  --wet-tint: #141e2a;
+  --wet-ink: #9cc0ea;
+  --poop: #4a3412;
+  --poop-fg: #f3dfbd;
+  --poop-tint: #211a11;
+  --poop-ink: #ddb57a;
+  --both: #36285a;
+  --both-fg: #e2d8f7;
+  --both-tint: #1c1727;
+  --both-ink: #c4b2ec;
+  --feed: #1d4430;
+  --feed-fg: #cdebd9;
+  --feed-tint: #131f18;
+  --feed-ink: #93d2ad;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-focus: var(--focus);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-tint: var(--primary-tint);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-ink: var(--danger-ink);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-wet: var(--wet);
+  --color-wet-fg: var(--wet-fg);
+  --color-wet-tint: var(--wet-tint);
+  --color-wet-ink: var(--wet-ink);
+  --color-poop: var(--poop);
+  --color-poop-fg: var(--poop-fg);
+  --color-poop-tint: var(--poop-tint);
+  --color-poop-ink: var(--poop-ink);
+  --color-both: var(--both);
+  --color-both-fg: var(--both-fg);
+  --color-both-tint: var(--both-tint);
+  --color-both-ink: var(--both-ink);
+  --color-feed: var(--feed);
+  --color-feed-fg: var(--feed-fg);
+  --color-feed-tint: var(--feed-tint);
+  --color-feed-ink: var(--feed-ink);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-display:
+    ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto,
+    sans-serif;
+  --shadow-card: var(--shadow);
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background: var(--bg);
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* iOS zooms inputs below 16px; never allow that. */
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    font-size: max(16px, 1em);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+@utility px-safe {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
