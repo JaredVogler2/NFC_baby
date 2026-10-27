@@ -1,5 +1,6 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { dirname } from 'node:path'
 import type { SendOutcome, SmsProvider } from './types'
 
 /**
@@ -30,6 +31,8 @@ export function mockProvider(): SmsProvider {
         }
       const file = process.env.MOCK_SMS_LOG_FILE
       if (file) {
+        // A fresh checkout (CI) has no test-results/ yet; the log must never break a send.
+        mkdirSync(dirname(file), { recursive: true })
         appendFileSync(
           file,
           `${JSON.stringify({ at: new Date().toISOString(), toLast4: to.slice(-4), body, outcome: outcome.kind, messageId: outcome.kind === 'accepted' ? outcome.messageId : null })}\n`,
