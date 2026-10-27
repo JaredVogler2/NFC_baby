@@ -5,6 +5,7 @@ import { NotConfigured } from '@/components/layout/NotConfigured'
 import { TagGate, TagRetired, TagViewOnly } from '@/components/nfc/TagStates'
 import { getSessionUser } from '@/lib/auth/session'
 import { loadMyContext } from '@/lib/db/context'
+import { getFeedSuggestions } from '@/lib/db/events'
 import { resolveTag } from '@/lib/db/tags'
 import { INTENT_LOG_TITLE, can } from '@/lib/domain/intents'
 import { isConfigured } from '@/lib/env/public'
@@ -38,6 +39,8 @@ export default async function TagPage({ params }: { params: Promise<{ token: str
   const role = resolved.role
   if (resolved.status === 'REVOKED') return <TagRetired canManage={can.manageTags(role)} />
   if (!can.log(role)) return <TagViewOnly />
+  const feedSuggestions =
+    resolved.tag.purpose === 'FEED' ? await getFeedSuggestions(supabase, resolved.child.id) : null
 
   return (
     <LogScreen
@@ -49,6 +52,8 @@ export default async function TagPage({ params }: { params: Promise<{ token: str
       timezone={resolved.household.timezone}
       volumeUnit={resolved.household.defaultVolumeUnit}
       returnPath={`/t/${token}`}
+      feedSuggestions={feedSuggestions}
+      defaultFeedMethod={resolved.household.defaultFeedMethod}
       scanTest={
         can.manageTags(role) && !resolved.tag.testedAt
           ? { tagId: resolved.tag.id, purposeLabel: INTENT_LOG_TITLE[resolved.tag.purpose] }

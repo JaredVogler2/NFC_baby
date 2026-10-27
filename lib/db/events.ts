@@ -220,3 +220,34 @@ export async function getFeedSuggestions(supabase: ServerSupabase, childId: stri
       : null,
   }
 }
+
+/** "Repeat last feed": the latest active feeding as visible form values (never auto-saved). */
+export async function lastFeedAsForm(supabase: ServerSupabase, childId: string) {
+  const { data, error } = await supabase
+    .from('care_event_list')
+    .select(
+      'subtype, milk_type, amount_entered_value, amount_entered_unit, amount_unknown, side, duration_seconds',
+    )
+    .eq('child_id', childId)
+    .eq('state', 'ACTIVE')
+    .eq('event_type', 'FEED')
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw toApiError(error, 'last_feed')
+  if (!data) return null
+  const bottle = data.subtype === 'BOTTLE'
+  return {
+    feedMethod: data.subtype as 'BOTTLE' | 'NURSING',
+    milkType: bottle ? (data.milk_type as 'BREASTMILK' | 'FORMULA' | 'OTHER' | 'UNKNOWN') : null,
+    amount:
+      bottle && data.amount_entered_value !== null ? String(Number(data.amount_entered_value)) : '',
+    amountUnit: (data.amount_entered_unit as 'oz' | 'ml' | null) ?? 'oz',
+    amountUnknown: bottle ? Boolean(data.amount_unknown) : false,
+    side: bottle ? null : ((data.side as 'LEFT' | 'RIGHT' | 'BOTH' | 'UNKNOWN' | null) ?? null),
+    durationMinutes:
+      !bottle && data.duration_seconds
+        ? String(Math.round(Number(data.duration_seconds) / 60))
+        : '',
+  }
+}

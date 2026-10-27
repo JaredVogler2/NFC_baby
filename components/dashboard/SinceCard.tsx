@@ -11,12 +11,14 @@ export function SinceCard({
   timezone,
   unit,
   empty,
+  footer,
 }: {
   title: string
   event: CareEvent | null
   timezone: string
   unit: VolumeUnit
   empty: string
+  footer?: React.ReactNode
 }) {
   if (!event) {
     return (
@@ -27,23 +29,26 @@ export function SinceCard({
     )
   }
   return (
-    <Link
-      href={`/history/${event.id}`}
-      className="flex min-h-32 flex-col justify-between gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-card"
-    >
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted">{title}</p>
-      <p className="font-display text-2xl font-bold leading-tight tabular">
-        <Elapsed iso={event.occurredAt} />
-      </p>
-      <p className="flex items-center gap-2 text-sm">
-        <KindBadge intent={event.intent} subtype={event.subtype} size="sm" />
-        <span className="min-w-0">
-          <span className="block truncate font-semibold">{eventSummary(event, unit)}</span>
-          <span className="block text-muted">
-            {formatWhen(new Date(event.occurredAt), timezone)}
+    <div className="flex flex-col gap-2">
+      <Link
+        href={`/history/${event.id}`}
+        className="flex min-h-32 flex-col justify-between gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-card"
+      >
+        <p className="text-sm font-semibold uppercase tracking-wide text-muted">{title}</p>
+        <p className="font-display text-2xl font-bold leading-tight tabular">
+          <Elapsed iso={event.occurredAt} />
+        </p>
+        <p className="flex items-center gap-2 text-sm">
+          <KindBadge intent={event.intent} subtype={event.subtype} size="sm" />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold">{eventSummary(event, unit)}</span>
+            <span className="block text-muted">
+              {formatWhen(new Date(event.occurredAt), timezone)}
+            </span>
           </span>
-        </span>
-      </p>
-    </Link>
+        </p>
+      </Link>
+      {footer}
+    </div>
   )
 }

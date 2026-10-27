@@ -11,6 +11,7 @@ import { DIAPER_NOTE_TEMPLATES, FEED_NOTE_TEMPLATES } from '@/lib/domain/notes'
 import type { Intent } from '@/lib/domain/intents'
 import type { FeedingInput } from '@/lib/domain/schemas'
 import { createEventSchema } from '@/lib/domain/schemas'
+import { parseAmount } from '@/lib/domain/units'
 import { apiFetch, isUncertainWriteFailure, type ApiResult } from '@/lib/http/client'
 import {
   clearSnapshot,
@@ -81,7 +82,9 @@ const EMPTY_FORM: FormState = {
 /** Build the feeding payload from form state (null when the intent is not FEED or incomplete). */
 export function feedingFromForm(form: FormState): FeedingInput | null {
   if (form.feedMethod === 'BOTTLE') {
-    const value = form.amount.trim() === '' ? null : Number(form.amount.replace(',', '.'))
+    const typed = form.amount.trim()
+    // Strict parse: anything that isn't a plain positive number is rejected (never coerced).
+    const value = typed === '' ? null : (parseAmount(typed) ?? Number.NaN)
     return {
       method: 'BOTTLE',
       milkType: form.milkType ?? ('' as never),

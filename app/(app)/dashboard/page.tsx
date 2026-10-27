@@ -62,6 +62,17 @@ export default async function DashboardPage({
             timezone={tz}
             unit={unit}
             empty="No feeding yet"
+            footer={
+              d.lastFeed && can.log(ctx.membership.role) ? (
+                <Link
+                  href={`/log/feed?repeat=1${childQuery ? `&child=${child.id}` : ''}`}
+                  prefetch={false}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border-strong px-3 text-sm font-semibold"
+                >
+                  Repeat last feed
+                </Link>
+              ) : null
+            }
           />
           <SinceCard
             title="Last diaper"

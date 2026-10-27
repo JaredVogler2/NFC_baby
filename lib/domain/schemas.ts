@@ -29,8 +29,8 @@ export const bottleSchema = z
     milkType: z.enum(MILK_TYPES, { message: 'Choose breastmilk, formula or unknown.' }),
     amountUnknown: z.boolean().default(false),
     amountValue: z
-      .number()
-      .finite()
+      .number({ message: 'Enter an amount like 3.5 (numbers only).' })
+      .finite('Enter an amount like 3.5 (numbers only).')
       .positive('Amount must be more than zero.')
       .nullable()
       .optional(),
