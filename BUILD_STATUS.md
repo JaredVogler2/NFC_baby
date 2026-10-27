@@ -5,14 +5,14 @@ gate's automated checks ran and passed; anything that needs a human, a device or
 marked **EXTERNAL SETUP** / **NEEDS HUMAN DEVICE/ACCOUNT SETUP** instead.
 
 ## NEXT_ACTION
-Phase 01 — write `docs/PRODUCT_SPEC.md` (entities, journeys A–I as named acceptance tests,
-wireframes, component map, requirement → route mapping, decision log).
+Phase 02 — scaffold Next.js 16 app (package.json scripts, tokens, shell, error handling, CI,
+`.env.example`, security headers).
 
 ## Phase table
 | Phase | Status | Commit | Evidence (commands / results) | Open questions / external setup |
 |---|---|---|---|---|
-| 00 Operating rules | PASS | (this commit) | Toolchain verified: Node 22.22.0, npm 10.9.4, Docker 29 daemon, local Supabase stack started from `ghcr.io` images (Postgres 17, GoTrue, PostgREST, Mailpit). Package versions checked on npm registry 2026-10-27. ADRs in `docs/ARCHITECTURE_DECISIONS.md`. | Hosted Supabase project, Vercel project, domain, Twilio are owner accounts → EXTERNAL SETUP |
-| 01 Product + UX | NOT STARTED | | | |
+| 00 Operating rules | PASS | f9e26af | Toolchain verified: Node 22.22.0, npm 10.9.4, Docker 29 daemon, local Supabase stack started from `ghcr.io` images (Postgres 17, GoTrue, PostgREST, Mailpit). Package versions checked on npm registry 2026-10-27. ADRs in `docs/ARCHITECTURE_DECISIONS.md`. | Hosted Supabase project, Vercel project, domain, Twilio are owner accounts → EXTERNAL SETUP |
+| 01 Product + UX | PASS | (this commit) | `docs/PRODUCT_SPEC.md`: entities, personas, exclusions, 13 route/component map, 10 text wireframes, state machines, API contract, 14 edge cases, journeys J-A…J-I as named Playwright tests with measurable outcomes, requirement→route mapping, decision log. Docs-only phase; no code to test. | None blocking |
 | 02 App foundation | NOT STARTED | | | |
 | 03 Data + security | NOT STARTED | | | |
 | 04 NFC tag system | NOT STARTED | | | |
