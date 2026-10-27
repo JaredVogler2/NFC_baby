@@ -52,7 +52,7 @@ export async function waitForCode(email: string, since: number): Promise<string>
   while (Date.now() < deadline) {
     const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`)
     const body = (await res.json()) as { messages: { ID: string; Created: string }[] }
-    const fresh = body.messages.find((m) => Date.parse(m.Created) >= since - 2000)
+    const fresh = body.messages.find((m) => Date.parse(m.Created) >= since - 250)
     if (fresh) {
       const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${fresh.ID}`)).json()) as {
         Text: string
@@ -70,7 +70,7 @@ export async function waitForLink(email: string, since: number): Promise<string>
   while (Date.now() < deadline) {
     const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`)
     const body = (await res.json()) as { messages: { ID: string; Created: string }[] }
-    const fresh = body.messages.find((m) => Date.parse(m.Created) >= since - 2000)
+    const fresh = body.messages.find((m) => Date.parse(m.Created) >= since - 250)
     if (fresh) {
       const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${fresh.ID}`)).json()) as {
         HTML: string
@@ -83,13 +83,35 @@ export async function waitForLink(email: string, since: number): Promise<string>
   throw new Error(`no sign-in link for ${email}`)
 }
 
+/**
+ * Click "Email me a sign-in code" and wait for the code step. Supabase limits how often one
+ * address can request a code (max_frequency); if a test hits that limit, wait and retry.
+ */
+export async function requestCodeViaUi(page: Page): Promise<number> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const since = Date.now()
+    await page.getByRole('button', { name: 'Email me a sign-in code' }).click()
+    const outcome = await Promise.race([
+      page
+        .getByText('Check your email')
+        .waitFor()
+        .then(() => 'ok' as const),
+      page
+        .getByText(/Too many codes requested/)
+        .waitFor()
+        .then(() => 'limited' as const),
+    ])
+    if (outcome === 'ok') return since
+    await page.waitForTimeout(1500)
+  }
+  throw new Error('sign-in code request kept being rate limited')
+}
+
 /** Sign in through the real UI (email → emailed code). */
 export async function signInViaUi(page: Page, email: string, next = '/dashboard') {
   await page.goto(`/login?next=${encodeURIComponent(next)}`)
   await page.getByLabel('Email').fill(email)
-  const since = Date.now()
-  await page.getByRole('button', { name: 'Email me a sign-in code' }).click()
-  await expect(page.getByText('Check your email')).toBeVisible()
+  const since = await requestCodeViaUi(page)
   await page.getByLabel('Code').fill(await waitForCode(email, since))
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
@@ -98,9 +120,15 @@ export async function signInViaUi(page: Page, email: string, next = '/dashboard'
 export async function signInContext(context: BrowserContext | APIRequestContext, email: string) {
   const request = 'request' in context ? context.request : context
   const headers = { Origin: BASE_URL }
-  const since = Date.now()
-  const sent = await request.post(`${BASE_URL}/api/v1/auth/otp`, { data: { email }, headers })
-  expect(sent.status()).toBe(200)
+  let since = Date.now()
+  for (let attempt = 0; ; attempt++) {
+    since = Date.now()
+    const sent = await request.post(`${BASE_URL}/api/v1/auth/otp`, { data: { email }, headers })
+    if (sent.status() === 200) break
+    // Per-address resend limit (Supabase max_frequency): wait and retry.
+    if (sent.status() !== 429 || attempt > 8) expect(sent.status()).toBe(200)
+    await new Promise((r) => setTimeout(r, 1500))
+  }
   const code = await waitForCode(email, since)
   const verified = await request.post(`${BASE_URL}/api/v1/auth/verify`, {
     data: { email, code },

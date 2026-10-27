@@ -59,7 +59,8 @@ export function LoginForm({
       return
     }
     setStep('code')
-    setCooldown(30)
+    // Supabase allows one code per address per minute by default.
+    setCooldown(60)
   }
 
   async function verify(event: React.FormEvent) {

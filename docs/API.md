@@ -78,6 +78,21 @@ A tag's purpose cannot be overridden: posting `FEED` through a WET tag → `422`
 (`ACTIVE|VOID`), void attribution, `revision`, `feeding` (canonical `amountMl` + entered
 value/unit, `amountUnknown`, side, duration, end).
 
-## NFC tags, notifications, export
-Documented with their phases: tags (phase 04) in `docs/NFC_STICKER_SETUP.md`, notifications
-(phase 08) in `docs/SMS_OPTIONS.md`, export (phase 07) in `docs/DATA_MANAGEMENT.md`.
+## NFC tags
+A tag token (26 chars, 128 random bits) is a **pointer, not a credential**. `GET /t/:token` (the
+page written on the sticker) is read-only for everyone: signed-out visitors get one identical
+generic gate for valid, unknown and revoked tokens; another family's token is a plain 404.
+
+| Endpoint | Role | Notes |
+|---|---|---|
+| `POST /tags` | owner, parent | `{ childId, purpose, label }` → `201 { tag, url, warnings[] }` (registers the mapping only; logs nothing). `warnings` flags non-HTTPS / missing `APP_URL` / preview-host URLs that must not be written to a sticker |
+| `GET /tags` | owner, parent | `{ tags[] (with url), warnings[] }` |
+| `GET /tags/:token` | member | resolve (read-only): `{ status: ACTIVE\|REVOKED, role, tag, child, household }`; 404 if unknown or not yours |
+| `PATCH /tags/:id` | owner, parent | `{ label, childId, purpose }` — URL unchanged; changing purpose/child clears "tested" |
+| `POST /tags/:id/revoke` | owner, parent | permanent; old URL then shows "Sticker retired" and `POST /events` with it → `410 GONE` |
+| `POST /tags/:id/tested` | owner, parent | scan-test confirmation (records nothing else) |
+| `GET /tags/:id/qr` | owner, parent | `image/svg+xml` QR of the same URL |
+
+## Notifications, export
+Documented with their phases: notifications (phase 08) in `docs/SMS_OPTIONS.md`, export (phase 07)
+in `docs/DATA_MANAGEMENT.md`.
