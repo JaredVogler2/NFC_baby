@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# next.js / build
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# env and secrets (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# os / editor
+.DS_Store
+*.log
+.vercel
