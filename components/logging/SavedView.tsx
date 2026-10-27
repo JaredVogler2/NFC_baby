@@ -132,7 +132,7 @@ export function SavedView({
             : ''}
         </Banner>
       ) : canEdit ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           <Button
             variant="secondary"
             icon={<UndoIcon size={20} />}

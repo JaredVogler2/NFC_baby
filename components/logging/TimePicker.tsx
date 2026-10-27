@@ -133,7 +133,11 @@ export function TimePicker({
           id={`${id}-panel`}
           className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-2 p-3"
         >
-          <div className="grid grid-cols-4 gap-2" role="group" aria-label="Quick times">
+          <div
+            className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"
+            role="group"
+            aria-label="Quick times"
+          >
             <Chip
               pressed={value.mode === 'now'}
               onClick={() => onChange({ ...value, mode: 'now' })}
@@ -150,12 +154,12 @@ export function TimePicker({
               </Chip>
             ))}
           </div>
-          <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-            <label className="flex flex-col gap-1 text-sm font-semibold">
+          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+            <label className="flex min-w-0 flex-col gap-1 text-sm font-semibold">
               Date
               <input
                 type="date"
-                className="min-h-12 rounded-xl border border-border-strong bg-surface px-3 text-base"
+                className="block min-h-12 w-full min-w-0 rounded-xl border border-border-strong bg-surface px-3 text-base"
                 value={value.mode === 'custom' ? value.date : localDateKey(new Date(now), timezone)}
                 max={localDateKey(new Date(now), timezone)}
                 onChange={(e) =>
@@ -171,11 +175,11 @@ export function TimePicker({
                 }
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm font-semibold">
+            <label className="flex min-w-0 flex-col gap-1 text-sm font-semibold">
               Time
               <input
                 type="time"
-                className="min-h-12 rounded-xl border border-border-strong bg-surface px-3 text-base"
+                className="block min-h-12 w-full min-w-0 rounded-xl border border-border-strong bg-surface px-3 text-base"
                 value={
                   value.mode === 'custom' ? value.time : localTimeValue(new Date(now), timezone)
                 }
