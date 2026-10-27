@@ -146,7 +146,7 @@ export function SavedView({
         </div>
       ) : null}
 
-      <NotificationPanel summary={notification} voided={voided} />
+      <NotificationPanel summary={notification} voided={voided} eventId={event.id} />
 
       <LinkButton href="/dashboard" variant="primary" size="xl" block>
         Done

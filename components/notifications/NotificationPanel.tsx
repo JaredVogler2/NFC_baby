@@ -1,18 +1,37 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/http/client'
 import type { NotificationSummary } from '@/lib/notifications/summary'
 import { Banner } from '@/components/ui/primitives'
 import { ShareActions } from './ShareActions'
 import { recipientStatusText } from './statusText'
 
 /** Parent-notification state, always shown separately from "Saved". */
+const IN_FLIGHT = new Set(['PENDING', 'PROCESSING'])
+
 export function NotificationPanel({
-  summary,
+  summary: initial,
   voided,
+  eventId,
 }: {
   summary: NotificationSummary
   voided?: boolean
+  eventId?: string
 }) {
+  const [summary, setSummary] = useState(initial)
+  // While texts are queued/sending, poll briefly so the screen shows what the provider said.
+  useEffect(() => {
+    if (!eventId || !summary.recipients.some((r) => IN_FLIGHT.has(r.state))) return
+    let tries = 0
+    const timer = setInterval(async () => {
+      tries++
+      const res = await apiFetch<{ notification: NotificationSummary }>(`/api/v1/events/${eventId}`)
+      if (res.ok) setSummary(res.data.notification)
+      if (tries >= 20) clearInterval(timer)
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [eventId, summary.recipients])
   const automatic = summary.recipients.filter(
     (r) => r.state !== 'SUPPRESSED' && r.state !== 'CANCELED',
   )

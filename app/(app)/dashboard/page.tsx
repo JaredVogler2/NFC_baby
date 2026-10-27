@@ -12,6 +12,7 @@ import { activeChildren, pickChild } from '@/lib/db/context'
 import { getDashboard } from '@/lib/db/events'
 import { can } from '@/lib/domain/intents'
 import { formatVolume } from '@/lib/domain/units'
+import { scheduleDueRetries } from '@/lib/notifications/dispatch-hook'
 import { unitPreference } from '@/lib/prefs'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -36,6 +37,8 @@ export default async function DashboardPage({
     )
   }
   const d = await getDashboard(supabase, child.id)
+  // Retry any due texts in the background whenever someone opens Home (Hobby cron is daily).
+  if (ctx.household.notificationMode === 'AUTOMATIC') scheduleDueRetries()
   const childQuery = children.length > 1 ? `?child=${child.id}` : ''
 
   return (

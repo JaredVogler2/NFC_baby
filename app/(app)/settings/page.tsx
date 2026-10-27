@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   HomeIcon,
   LockIcon,
+  MessageIcon,
   MoonIcon,
   NfcIcon,
   UsersIcon,
@@ -41,6 +42,12 @@ export default async function SettingsPage() {
       label: 'NFC stickers',
       hint: 'Create, test, print, retire',
       icon: <NfcIcon size={22} />,
+    },
+    {
+      href: '/settings/notifications',
+      label: 'Texts & notifications',
+      hint: 'Off, share a draft, or automatic texts',
+      icon: <MessageIcon size={22} />,
     },
     {
       href: '/settings/display',
