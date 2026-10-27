@@ -35,5 +35,6 @@ if a hosted Supabase project is available, otherwise mark EXTERNAL SETUP.
 - Playwright: Chromium 1243 preinstalled at `/opt/pw-browsers`, matching `@playwright/test` 1.63.
 
 ## Git history note
-PR #1 (phases 00–02) was merged into `main` on 2026-10-27 (`df87ea0`). Phase 03+ continue on the
-same branch (main merged back in, no history rewritten) in a new pull request.
+PR #1 (phases 00–02) was merged into `main` on 2026-10-27 (`df87ea0`); PR #2 (phases 03–07) was
+merged on 2026-10-27 (`5884641`). Phases 08+ continue on the same branch with `main` merged back in
+(no history rewritten) and go to a new pull request.
