@@ -83,4 +83,23 @@ test.describe('uncertain saves', () => {
       sql(`select source from public.care_events where household_id = '${fam.householdId}'`),
     ).toBe('TAG')
   })
+
+  test('slow server: taps while saving send nothing more, and success shows only after the answer', async () => {
+    const token = await seedTag(fam, 'POOP')
+    await page.goto(`/t/${token}`)
+    let posts = 0
+    await page.route('**/api/v1/events', async (route) => {
+      posts++
+      await new Promise((r) => setTimeout(r, 2500))
+      await route.continue()
+    })
+    await page.getByRole('button', { name: 'Save poop diaper' }).click()
+    const saving = page.getByRole('button', { name: 'Saving…' })
+    await expect(saving).toBeDisabled()
+    for (let i = 0; i < 4; i++) await saving.click({ force: true })
+    expect(page.url()).not.toMatch(/\/saved\//) // no success before the server has answered
+    await expect(page).toHaveURL(/\/saved\//)
+    expect(posts).toBe(1)
+    expect(countEvents(fam.householdId)).toBe(1)
+  })
 })

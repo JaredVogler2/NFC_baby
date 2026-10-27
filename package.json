@@ -17,12 +17,13 @@
     "test:watch": "vitest --project unit",
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
+    "check:secrets": "node scripts/check-secrets.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:start": "supabase start -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor,postgres-meta",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:lint": "supabase db lint --level warning",
+    "db:lint": "supabase db lint --level warning --fail-on warning",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {

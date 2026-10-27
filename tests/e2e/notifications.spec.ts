@@ -210,11 +210,26 @@ test.describe('automatic texts (mock provider)', () => {
     )
   })
 
+  test('test texts are limited to three per hour per family', async () => {
+    const before = sentTo('0152').length
+    const statuses: number[] = []
+    for (let i = 0; i < 3; i++) {
+      const res = await mom.request.post(`${BASE_URL}/api/v1/notifications/test`, {
+        headers: { Origin: BASE_URL },
+        data: { userId: fam.parent.id, confirm: true },
+      })
+      statuses.push(res.status())
+    }
+    // One was sent by the previous test: two more succeed, the next is refused.
+    expect(statuses).toEqual([200, 200, 429])
+    expect(sentTo('0152')).toHaveLength(before + 2)
+  })
+
   test('Dad replies STOP: no further automatic texts to him; Mom still gets hers', async () => {
     const params = {
       From: '+12015550152',
       Body: 'Stop',
-      To: '+15005550006',
+      To: '+12015550199', // the family's (fictional) sending number
       MessageSid: 'SMinbound1',
     }
     const res = await signedPost('/api/v1/notifications/twilio/inbound', params)

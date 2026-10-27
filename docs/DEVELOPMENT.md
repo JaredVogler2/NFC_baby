@@ -25,6 +25,8 @@ Behind a registry that rate-limits Docker Hub/ECR, use GitHub's registry:
 | `npm run test:integration` | RLS, SQL functions, idempotency, invites against the real local Supabase with real user JWTs | local Supabase + `.env.local` |
 | `npm run build && npm run test:e2e` | Playwright on a production build (iPhone viewport, Chromium), real sign-in via Mailpit codes | local Supabase + `.env.local` |
 | `npm run db:reset` | re-applies all migrations to an empty database | local Supabase |
+| `npm run db:lint` | plpgsql_check over every SQL function; any warning fails | local Supabase |
+| `npm run check:secrets` | scans git-tracked files and the browser build (`.next/static`) for keys, tokens, service-role JWTs, real-looking phone numbers and server-only env values | (build first for the bundle part) |
 
 The E2E suite wipes local family data (`tests/e2e/support.ts → resetAll`). Never point
 `.env.local` at a real project while running tests.

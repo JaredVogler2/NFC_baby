@@ -217,5 +217,17 @@ test('H: editing the amount after a text was sent corrects history, warns, and s
   await expect(page.getByRole('heading', { name: 'Bottle · Formula · 3.5 oz' })).toBeVisible()
   await expect(page.getByText('Amount: 3 oz → 3.5 oz')).toBeVisible()
   expect(countOutbox(fam.householdId)).toBe(outboxBefore)
+
+  // Undo after a text went out: the dialog and the result both say the text can't be recalled.
+  await page.getByRole('button', { name: 'Undo this entry' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'A text about it may already have been received; texts can’t be recalled.',
+  )
+  await page.getByRole('button', { name: 'Undo entry' }).click()
+  await expect(
+    page.getByText(/Entry undone\. A text about it may already have been received/),
+  ).toBeVisible()
+  expect(sql(`select state from public.care_events where id = '${eventId}'`)).toBe('VOID')
+  expect(countOutbox(fam.householdId)).toBe(outboxBefore)
   await admin.from('households').update({ notification_mode: 'OFF' }).eq('id', fam.householdId)
 })
