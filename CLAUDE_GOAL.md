@@ -1,0 +1,13 @@
+# Initial /goal to paste into Claude Code Opus 5.5
+
+/goal Build NFC Baby as a beautiful, fast, reliable, family-private, production-ready tap-to-log baby-care web app deployed on Vercel. The repository contains an ordered specification in README.md, prompts/00_OPERATING_RULES.md, prompts/01_PRODUCT_AND_UX.md through prompts/13_OPTIONAL_ENHANCEMENTS.md, and supporting docs. Read README, all mandatory prompts, and supporting docs first. Do not invent an alternate product scope. Execute one numbered phase at a time in exact order, implement code and tests, validate each acceptance gate, commit changes to Git, write a durable status in BUILD_STATUS.md, and continue to the next numbered phase. If interrupted, inspect Git history and BUILD_STATUS.md and resume at the first incomplete gate, avoiding redundant changes. Finish the mandatory phases and deliver a working deployable website, NFC tag provisioning and iPhone setup documentation, plus a testable parent notification experience. Work independently, resolve ordinary design choices sensibly, and favor a complete secure usable vertical slice over speculative features. Preserve the distinction between a database save, drafted text, queued message and delivered text. Do not commit phone numbers, API keys or real baby data. Do not send any real SMS until the designated parent recipients opt in and deployment configuration is verified. Never claim an untested feature is working. Use recent package versions compatible with the chosen stack, verify exact package APIs before coding, and give a final report with production URL if deployed, test evidence, remaining manual setup and any limitations.
+
+## Completion means
+- NFC Wet, Poop, Both, and Feed stickers work with normal iPhone URL NFC scans, each presenting the correct short screen.
+- Authenticated users can save events deliberately; repeat scans, retries, back-button navigation and browser prefetch never log an accidental or duplicate event.
+- Date/time, type, amount (where applicable), note, author, corrections and an auditable event history work.
+- Both parents see changes on their own phones; role restrictions are enforced.
+- Notification options are clearly selectable: no texting, iPhone draft/Shortcuts, or optional provider-backed automatic SMS to both verified consenting adults.
+- Works on Safari iPhone in bright light and at 2 AM; deploys to Vercel with secure and documented configuration.
+
+Begin with phase 00; do not skip gates to rush into graphics.
