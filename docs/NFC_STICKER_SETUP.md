@@ -19,6 +19,8 @@ This document is for the actual household setup after deploying the website. The
 Extra same-purpose tags permitted upstairs, downstairs, travel bag, etc. Each receives a separate opaque token; can point to same action.
 
 ## After Vercel production domain is running
+> In the built app the screens are named **Settings → NFC stickers → Create sticker link**; the step-by-step with the exact button names is in `docs/ONBOARDING.md`.
+
 1. Sign in as household owner in the production site on iPhone.
 2. Open Settings > NFC Tags > New Tag.
 3. Choose baby's private profile, purpose, human label. Generate tag URL, for example https://nfc-baby.example/t/7HVQ-OPAQUE (illustrative, never real).

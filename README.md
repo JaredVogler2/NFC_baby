@@ -1,6 +1,41 @@
 # NFC Baby — Tap-to-Log Family Tracker
 
-A deliberately simple, mobile-first baby-care tracker activated by NFC stickers and hosted on Vercel. This repository begins with a **Claude Code Opus 5.5 build-specification and execution series**. The application is **not implemented yet**.
+A deliberately simple, mobile-first baby-care tracker activated by NFC stickers and hosted on Vercel.
+The repository holds the build specification (`prompts/`) **and the application built from it**.
+
+## Status
+Phases 00–10 are implemented and verified by automated tests: 215 unit, 96 integration against a
+real local Supabase, and 92 Playwright end-to-end tests on an iPhone viewport, plus axe and
+Lighthouse checks. See [BUILD_STATUS.md](BUILD_STATUS.md) for the evidence per phase and
+[docs/ACCEPTANCE_MATRIX.md](docs/ACCEPTANCE_MATRIX.md) for each requirement.
+
+Some things still need the owner's own devices and accounts and are **not** verified yet:
+- a hosted Supabase project and the production Vercel deployment with its environment variables
+- real iPhone NFC scans, Safari vs. Home Screen app, and VoiceOver
+- live Twilio texts to both parents
+
+## Use it
+- **Set it up**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Supabase + Vercel, about 45 min), then
+  [docs/ONBOARDING.md](docs/ONBOARDING.md) (family, invite, stickers, and a one-page card for parents).
+- **Problems**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+- **Develop and test locally**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+  ```bash
+  npm ci && npm run db:start && node scripts/write-local-env.mjs && npm run dev
+  ```
+
+## How it fits together
+```
+NFC sticker (https://<domain>/t/<opaque token>)
+  → Safari → Next.js 16 on Vercel (read-only page; nothing is saved by opening it)
+  → explicit Save → POST /api/v1/events (same-origin, idempotent clientRequestId)
+  → Supabase Postgres: SECURITY DEFINER function checks membership/role → event + audit + text outbox
+       (Row Level Security on every table; browsers can only read their own family)
+  → optional texts: outbox → Twilio, one separate SMS per consenting, verified parent
+```
+- Code map: `app/` (routes and API), `components/`, `lib/` (domain, db, auth, notifications,
+  offline), `supabase/migrations/` (schema, RLS, functions), `tests/` (unit, integration, e2e).
+- Decisions and trade-offs: [docs/ARCHITECTURE_DECISIONS.md](docs/ARCHITECTURE_DECISIONS.md).
+  API: [docs/API.md](docs/API.md). Data lifecycle: [docs/DATA_MANAGEMENT.md](docs/DATA_MANAGEMENT.md).
 
 ## Primary workflow
 - Four purpose-specific NFC tags: **Wet Diaper**, **Poop Diaper**, **Both**, and **Feeding**.
@@ -32,6 +67,7 @@ Read [CLAUDE_GOAL.md](CLAUDE_GOAL.md), then [prompts/00_OPERATING_RULES.md](prom
 | 13 | [Optional](prompts/13_OPTIONAL_ENHANCEMENTS.md) | Small optional features only |
 
 ### Supporting references
+- [Deployment](docs/DEPLOYMENT.md) · [Onboarding](docs/ONBOARDING.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [NFC setup](docs/NFC_STICKER_SETUP.md)
 - [iPhone, Home Screen and offline use](docs/IPHONE_AND_OFFLINE.md)
 - [SMS delivery decision](docs/SMS_OPTIONS.md)

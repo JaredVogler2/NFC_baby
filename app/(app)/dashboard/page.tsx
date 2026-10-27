@@ -34,7 +34,7 @@ export default async function DashboardPage({
   if (!child) {
     return (
       <AppShell title="Home">
-        <EmptyState title="No child profile yet">Add one in Settings → Family.</EmptyState>
+        <EmptyState title="No child profile yet">Add one in Settings → Family & baby.</EmptyState>
       </AppShell>
     )
   }
