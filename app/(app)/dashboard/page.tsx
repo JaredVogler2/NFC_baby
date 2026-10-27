@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { NfcIcon } from '@/components/icons'
 import { AppShell } from '@/components/layout/AppShell'
+import { LiveRefresh } from '@/components/layout/LiveRefresh'
 import { QuickLog } from '@/components/dashboard/QuickLog'
 import { SinceCard } from '@/components/dashboard/SinceCard'
 import { EventRow } from '@/components/logging/EventRow'
@@ -38,7 +39,7 @@ export default async function DashboardPage({
   const childQuery = children.length > 1 ? `?child=${child.id}` : ''
 
   return (
-    <AppShell title={child.nickname}>
+    <AppShell title={child.nickname} actions={<LiveRefresh timezone={tz} />}>
       <div className="flex flex-col gap-6">
         {children.length > 1 ? (
           <nav aria-label="Choose child" className="flex gap-2 overflow-x-auto">

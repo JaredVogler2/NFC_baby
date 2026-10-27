@@ -93,6 +93,17 @@ generic gate for valid, unknown and revoked tokens; another family's token is a 
 | `POST /tags/:id/tested` | owner, parent | scan-test confirmation (records nothing else) |
 | `GET /tags/:id/qr` | owner, parent | `image/svg+xml` QR of the same URL |
 
-## Notifications, export
-Documented with their phases: notifications (phase 08) in `docs/SMS_OPTIONS.md`, export (phase 07)
-in `docs/DATA_MANAGEMENT.md`.
+## Settings and export
+| Endpoint | Role | Notes |
+|---|---|---|
+| `PATCH /household` | owner | `{ displayName, timezone, defaultFeedMethod, defaultVolumeUnit }` |
+| `POST /children` · `PATCH /children/:id` | owner | `{ nickname, archived? }` — at least one active child is kept |
+| `PATCH /members/:userId` | owner | `{ role?, disabled? }` — never removes the last owner; deactivation also cancels that adult's pending texts |
+| `PATCH /me/profile` | any member | `{ displayName }` |
+| `GET /export?format=csv\|json` | owner, parent | every entry incl. undone; `Content-Disposition: attachment`, `no-store`; CSV formula-injection safe (cells starting `= + - @` tab/CR get a leading `'`); columns documented on Settings → Privacy & export |
+
+Display preferences (theme, per-phone unit, "Shortcut installed") are device-local (cookie /
+localStorage) and never stored on the server.
+
+## Notifications
+Documented with phase 08 in `docs/SMS_OPTIONS.md`.
