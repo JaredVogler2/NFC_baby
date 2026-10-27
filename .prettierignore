@@ -7,3 +7,4 @@ package-lock.json
 supabase/.temp
 *.md
 prompts
+supabase/templates

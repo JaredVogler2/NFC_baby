@@ -213,7 +213,7 @@ export function Chip({
       type="button"
       aria-pressed={pressed}
       className={[
-        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border px-3.5 font-semibold tabular touch-manipulation',
+        'inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap rounded-xl border px-3 font-semibold tabular touch-manipulation',
         pressed
           ? 'border-primary bg-primary text-primary-fg'
           : 'border-border-strong bg-surface text-text',

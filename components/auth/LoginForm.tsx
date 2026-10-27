@@ -8,7 +8,18 @@ import { apiFetch } from '@/lib/http/client'
 
 type Step = 'email' | 'code'
 
-export function LoginForm({ next, initialEmail = '' }: { next: string; initialEmail?: string }) {
+export function LoginForm({
+  next,
+  initialEmail = '',
+  startPath = '/api/v1/auth/otp',
+  startBody = {},
+}: {
+  next: string
+  initialEmail?: string
+  /** Endpoint that emails the code (sign-in, or invite start which also checks the invite). */
+  startPath?: string
+  startBody?: Record<string, string>
+}) {
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState(initialEmail)
   const [code, setCode] = useState('')
@@ -32,9 +43,9 @@ export function LoginForm({ next, initialEmail = '' }: { next: string; initialEm
     if (busy) return
     setBusy(true)
     setError(null)
-    const result = await apiFetch<{ ok: true }>('/api/v1/auth/otp', {
+    const result = await apiFetch<{ ok: true }>(startPath, {
       method: 'POST',
-      body: { email: email.trim(), next },
+      body: { ...startBody, email: email.trim(), next },
     })
     setBusy(false)
     if (!result.ok) {
@@ -48,7 +59,8 @@ export function LoginForm({ next, initialEmail = '' }: { next: string; initialEm
       return
     }
     setStep('code')
-    setCooldown(30)
+    // Supabase allows one code per address per minute by default.
+    setCooldown(60)
   }
 
   async function verify(event: React.FormEvent) {

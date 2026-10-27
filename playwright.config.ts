@@ -34,6 +34,10 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { NFC_BABY_SILENT_LOGS: '1' },
+    env: {
+      NFC_BABY_SILENT_LOGS: '1',
+      APP_URL: `http://localhost:${PORT}`,
+      SMS_PROVIDER: 'mock',
+    },
   },
 })
