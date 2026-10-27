@@ -5,6 +5,10 @@ import { MAX_BOTTLE_ML, toMl } from './units'
 import { TOKEN_PATTERN } from '@/lib/nfc/token'
 import { isValidTimeZone } from '@/lib/time/zoned'
 
+// No eval: Zod's JIT probe (`Function("")`) would trip the strict Content-Security-Policy in the
+// browser. Validation of these small payloads is fast without it.
+z.config({ jitless: true })
+
 /**
  * API input schemas — the single source of truth for request validation. The browser uses them
  * for friendly inline errors; the server re-validates (and Postgres re-checks the invariants).

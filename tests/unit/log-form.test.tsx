@@ -2,6 +2,8 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LogForm } from '@/components/logging/LogForm'
+import { resetDbConnectionForTests } from '@/lib/offline/db'
+import { clearAllDrafts, listDrafts } from '@/lib/offline/drafts'
 
 const replace = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -11,6 +13,7 @@ vi.mock('next/navigation', () => ({
 const props = {
   intent: 'WET' as const,
   userId: 'user-1',
+  householdId: '33333333-3333-4333-8333-333333333333',
   child: { id: '11111111-1111-4111-8111-111111111111', nickname: 'Bean' },
   tagToken: '0123456789abcdefghjkmnpqrs',
   tagLabel: 'Changing table',
@@ -33,7 +36,12 @@ describe('LogForm save behaviour', () => {
     sessionStorage.clear()
     replace.mockReset()
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    await clearAllDrafts()
+    resetDbConnectionForTests()
+  })
 
   it('shows the intent, child and a single explicit Save; nothing is sent on render', () => {
     const fetchMock = vi.fn()
@@ -138,5 +146,55 @@ describe('LogForm save behaviour', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Save wet diaper' }))
     expect(await screen.findByText('That’s more than a day ago')).toBeInTheDocument()
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('offline: nothing is sent; "Keep as pending" stores the same request id with the tap time', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    render(<LogForm {...props} />)
+    const user = userEvent.setup()
+    const before = Date.now()
+    await user.click(screen.getByRole('button', { name: 'Save wet diaper' }))
+    expect(await screen.findByText('You’re offline — not saved')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Keep as pending on this phone' }))
+    expect(
+      await screen.findByText('Pending on this device — NOT yet in shared history; no text sent.'),
+    ).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    // Save is locked: the same entry can't be submitted again from this screen.
+    expect(screen.getByRole('button', { name: 'Save wet diaper' })).toBeDisabled()
+    const drafts = await listDrafts('user-1')
+    expect(drafts).toHaveLength(1)
+    const d = drafts[0]!
+    expect(d.payload).toMatchObject({ intent: 'WET', tagToken: props.tagToken, offlineSync: true })
+    expect(Date.parse(d.payload.occurredAt!)).toBeGreaterThanOrEqual(before - 1000)
+    expect(Date.parse(d.payload.occurredAt!)).toBeLessThanOrEqual(Date.now())
+    expect(d.summary).toBe('Wet diaper')
+    expect(d.householdId).toBe(props.householdId)
+    // The unsaved-attempt snapshot is gone; the draft is the single local copy.
+    expect(sessionStorage.getItem(`nfcb:attempt:user-1:tag:${props.tagToken}`)).toBeNull()
+  })
+
+  it('uncertain: the draft keeps the id of the attempt that may have reached the server', async () => {
+    let postedKey = ''
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') postedKey = JSON.parse(init.body as string).clientRequestId
+      throw new TypeError('Failed to fetch')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<LogForm {...props} />)
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    await user.click(screen.getByRole('button', { name: 'Save wet diaper' }))
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await screen.findByText('Can’t confirm the save yet')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Keep as pending on this phone' }))
+    await screen.findByText('Pending on this device — NOT yet in shared history; no text sent.')
+    const [d] = await listDrafts('user-1')
+    expect(d?.clientRequestId).toBe(postedKey)
+    expect(d?.sentBefore).toBe(true)
+    vi.useRealTimers()
   })
 })

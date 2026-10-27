@@ -33,6 +33,7 @@ Read [CLAUDE_GOAL.md](CLAUDE_GOAL.md), then [prompts/00_OPERATING_RULES.md](prom
 
 ### Supporting references
 - [NFC setup](docs/NFC_STICKER_SETUP.md)
+- [iPhone, Home Screen and offline use](docs/IPHONE_AND_OFFLINE.md)
 - [SMS delivery decision](docs/SMS_OPTIONS.md)
 - [Environment + secrets](docs/ENVIRONMENT.md)
 - [Acceptance matrix](docs/ACCEPTANCE_MATRIX.md)

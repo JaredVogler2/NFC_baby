@@ -6,6 +6,8 @@ import { LiveRefresh } from '@/components/layout/LiveRefresh'
 import { QuickLog } from '@/components/dashboard/QuickLog'
 import { SinceCard } from '@/components/dashboard/SinceCard'
 import { EventRow } from '@/components/logging/EventRow'
+import { PendingDrafts } from '@/components/offline/PendingDrafts'
+import { RememberOfflineContext } from '@/components/offline/RememberOfflineContext'
 import { Card, EmptyState, SectionTitle } from '@/components/ui/primitives'
 import { requirePageMember } from '@/lib/auth/member'
 import { activeChildren, pickChild } from '@/lib/db/context'
@@ -87,6 +89,8 @@ export default async function DashboardPage({
           />
         </div>
 
+        <PendingDrafts userId={ctx.userId} householdId={ctx.membership.householdId} timezone={tz} />
+
         {can.log(ctx.membership.role) ? <QuickLog childQuery={childQuery} /> : null}
 
         <section aria-labelledby="recent" className="flex flex-col gap-2">
@@ -133,6 +137,15 @@ export default async function DashboardPage({
           </p>
         </details>
       </div>
+      <RememberOfflineContext
+        userId={ctx.userId}
+        householdId={ctx.membership.householdId}
+        canLog={can.log(ctx.membership.role)}
+        timezone={tz}
+        volumeUnit={ctx.household.defaultVolumeUnit}
+        defaultFeedMethod={ctx.household.defaultFeedMethod}
+        childList={children.map((c) => ({ id: c.id, nickname: c.nickname }))}
+      />
     </AppShell>
   )
 }

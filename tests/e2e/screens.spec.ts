@@ -104,3 +104,60 @@ for (const scheme of SCHEMES) {
     })
   }
 }
+
+test('landscape and 200% zoom keep the Save button reachable without sideways scrolling', async ({
+  browser,
+}) => {
+  // Landscape iPhone, and iPhone portrait at 200% page zoom (393 / 2 ≈ 197 CSS px wide).
+  for (const viewport of [
+    { width: 852, height: 393 },
+    { width: 197, height: 426 },
+  ]) {
+    const ctx = await browser.newContext({ viewport, isMobile: true, hasTouch: true })
+    await signInContext(ctx, fam.parent.email)
+    const page = await ctx.newPage()
+    for (const [path, primary] of [
+      [`/t/${wetToken}`, /Save wet diaper/],
+      [`/t/${feedToken}`, /Save/],
+    ] as const) {
+      await page.goto(path)
+      await check(
+        page,
+        `zoom-${viewport.width}x${viewport.height}`,
+        viewport.width,
+        'light',
+        primary,
+      )
+    }
+    await page.goto('/dashboard')
+    await check(page, `dashboard-${viewport.width}x${viewport.height}`, viewport.width, 'light')
+    await ctx.close()
+  }
+})
+
+test('form controls use at least 16px text (no iOS zoom-on-focus) and honour reduced motion', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+  await signInContext(ctx, fam.parent.email)
+  const page = await ctx.newPage()
+  await page.goto(`/t/${feedToken}`)
+  await page
+    .locator('label')
+    .filter({ hasText: /^Bottle$/ })
+    .click()
+  await page.getByRole('button', { name: 'Change time' }).click()
+  await page.getByRole('button', { name: /Add note/ }).click()
+  const sizes = await page.evaluate(() =>
+    [...document.querySelectorAll('input:not([type=radio]):not([type=checkbox]), select, textarea')]
+      .filter((el) => (el as HTMLElement).offsetParent !== null)
+      .map((el) => [el.getAttribute('name') ?? el.id, parseFloat(getComputedStyle(el).fontSize)]),
+  )
+  expect(sizes.length).toBeGreaterThan(2)
+  for (const [name, size] of sizes) expect(size, `${name} font size`).toBeGreaterThanOrEqual(16)
+  const transition = await page
+    .getByRole('button', { name: /Save/ })
+    .evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration))
+  expect(transition).toBeLessThan(0.01)
+  await ctx.close()
+})

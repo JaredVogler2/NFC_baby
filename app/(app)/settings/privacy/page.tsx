@@ -72,6 +72,11 @@ export default async function PrivacyPage() {
               <li>Phone numbers for texts are encrypted and shown only as the last four digits.</li>
               <li>Undo keeps a record in the history of changes; nothing is silently erased.</li>
               <li>
+                On each phone, the app keeps only what it needs to work without signal: entries you
+                chose to keep as pending (until they sync, at most 7 days), and the stickers and
+                family basics (child name, time zone) you last opened. Signing out removes them.
+              </li>
+              <li>
                 To delete the whole family log, export it first, then ask the owner of the site’s
                 database to run the documented purge (docs/DATA_MANAGEMENT.md).
               </li>

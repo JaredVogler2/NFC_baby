@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { CloseIcon } from '@/components/icons'
+import { OfflinePill } from '@/components/layout/OfflineBanner'
 import { Button } from '@/components/ui/Button'
 import { Banner } from '@/components/ui/primitives'
 import { loginUrlFor } from '@/lib/auth/redirect'
 import { DIAPER_NOTE_TEMPLATES, FEED_NOTE_TEMPLATES } from '@/lib/domain/notes'
 import type { Intent } from '@/lib/domain/intents'
-import type { FeedingInput } from '@/lib/domain/schemas'
+import type { CreateEventInput, FeedingInput } from '@/lib/domain/schemas'
 import { createEventSchema } from '@/lib/domain/schemas'
 import { parseAmount } from '@/lib/domain/units'
 import { apiFetch, isUncertainWriteFailure, type ApiResult } from '@/lib/http/client'
@@ -21,6 +22,8 @@ import {
   saveSnapshot,
   type FormState,
 } from '@/lib/logging/attempt'
+import { DraftLimitError, saveDraft } from '@/lib/offline/drafts'
+import { draftSummary } from '@/lib/offline/sync'
 import { KIND, KindBadge } from './kind'
 import { NotesField } from './NotesField'
 import { resolveWhen, TimePicker } from './TimePicker'
@@ -28,6 +31,7 @@ import { resolveWhen, TimePicker } from './TimePicker'
 export type LogFormProps = {
   intent: Intent
   userId: string
+  householdId: string
   child: { id: string; nickname: string }
   tagToken: string | null
   tagLabel: string | null
@@ -61,6 +65,8 @@ type Status =
   | { kind: 'confirm_old'; message: string }
   | { kind: 'gone' }
   | { kind: 'error'; message: string }
+  | { kind: 'pending_saved' }
+  | { kind: 'pending_failed'; message: string }
 
 const EMPTY_FORM: FormState = {
   whenMode: 'now',
@@ -121,6 +127,8 @@ export function LogForm(props: LogFormProps) {
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const busyRef = useRef(false)
+  /** The exact body of the last Save tap, and when it happened (for a pending draft). */
+  const lastAttempt = useRef<{ payload: CreateEventInput; tappedAt: number } | null>(null)
 
   // Restore an unsaved attempt for this same user (e.g. after signing in again).
   useEffect(() => {
@@ -236,6 +244,7 @@ export function LogForm(props: LogFormProps) {
       return
     }
     busyRef.current = true
+    lastAttempt.current = { payload, tappedAt: Date.now() }
     setStatus({ kind: 'saving' })
     setFieldErrors({})
     persist(true)
@@ -292,8 +301,58 @@ export function LogForm(props: LogFormProps) {
     }
   }
 
+  /**
+   * The parent already tapped Save; with no connection they may choose to keep that exact entry on
+   * this phone. Same clientRequestId, time pinned to the moment of the tap. It is NOT an event yet.
+   */
+  async function keepPending() {
+    const attempt = lastAttempt.current
+    if (!attempt || busyRef.current) return
+    busyRef.current = true
+    const payload: CreateEventInput = {
+      ...attempt.payload,
+      occurredAt: attempt.payload.occurredAt ?? new Date(attempt.tappedAt).toISOString(),
+      offlineSync: true,
+    }
+    try {
+      await saveDraft({
+        v: 1,
+        clientRequestId: payload.clientRequestId,
+        userId,
+        householdId: props.householdId,
+        childId: child.id,
+        childNickname: child.nickname,
+        intent,
+        tagLabel: props.tagLabel,
+        payload,
+        summary: draftSummary(intent, payload.feeding),
+        createdAt: attempt.tappedAt,
+        sentBefore: status.kind === 'uncertain',
+        state: 'pending',
+        lastError: null,
+        needsConfirmOld: false,
+      })
+      clearSnapshot(safeSessionStorage(), userId, formKey)
+      setStatus({ kind: 'pending_saved' })
+    } catch (e) {
+      setStatus({
+        kind: 'pending_failed',
+        message:
+          e instanceof DraftLimitError
+            ? `${e.message} Sync or discard some on Home first.`
+            : 'This browser won’t let the app store it (private browsing or storage full).',
+      })
+    } finally {
+      busyRef.current = false
+    }
+  }
+
   const saving = status.kind === 'saving' || status.kind === 'checking'
-  const locked = saving || status.kind === 'uncertain' || (sent && status.kind === 'auth')
+  const locked =
+    saving ||
+    status.kind === 'uncertain' ||
+    status.kind === 'pending_saved' ||
+    (sent && status.kind === 'auth')
   const saveLabel = saveButtonLabel(intent, form)
 
   return (
@@ -306,15 +365,19 @@ export function LogForm(props: LogFormProps) {
           <CloseIcon />
           <span className="sr-only">Cancel and go home</span>
         </Link>
-        {props.tagLabel ? (
-          <span className="truncate text-sm text-muted">Sticker: {props.tagLabel}</span>
-        ) : null}
+        <div className="flex min-w-0 items-center gap-2">
+          <OfflinePill />
+          {props.tagLabel ? (
+            <span className="truncate text-sm text-muted">Sticker: {props.tagLabel}</span>
+          ) : null}
+        </div>
       </header>
 
       <main id="main" className="flex flex-1 flex-col gap-5 px-4 pb-40">
-        <div className="flex items-center gap-4 pt-2">
+        {/* Wraps under the badge at very narrow widths (e.g. 200% zoom) instead of clipping. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
           <KindBadge intent={intent} size="lg" />
-          <div className="min-w-0">
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <h1 className="font-display text-[28px] font-bold leading-tight">{kind.title}</h1>
             <p className="text-[17px] text-muted">
               for <strong className="text-text">{child.nickname}</strong>
@@ -379,6 +442,7 @@ export function LogForm(props: LogFormProps) {
             update({ confirmOld: true })
             setStatus({ kind: 'idle' })
           }}
+          onKeepPending={() => void keepPending()}
           beforeLogin={() => persist(sent)}
         />
       </main>
@@ -431,6 +495,7 @@ function StatusPanel({
   onRetry,
   onCheck,
   onConfirmOld,
+  onKeepPending,
   beforeLogin,
 }: {
   status: Status
@@ -438,8 +503,14 @@ function StatusPanel({
   onRetry: () => void
   onCheck: () => void
   onConfirmOld: () => void
+  onKeepPending: () => void
   beforeLogin: () => void
 }) {
+  const keepButton = (
+    <Button size="md" variant="primary" onClick={onKeepPending}>
+      Keep as pending on this phone
+    </Button>
+  )
   return (
     <div id="save-status" aria-live="polite" className="empty:hidden">
       {status.kind === 'checking' ? (
@@ -453,13 +524,17 @@ function StatusPanel({
           role="alert"
           title="Can’t confirm the save yet"
           action={
-            <Button size="md" onClick={onCheck}>
-              Check again
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="md" variant="secondary" onClick={onCheck}>
+                Check again
+              </Button>
+              {keepButton}
+            </div>
           }
         >
           It may or may not have been saved. Checking again is safe — it will never create a second
-          entry.
+          entry. No signal? Keep it on this phone; it syncs with the same id, so it can’t be added
+          twice.
         </Banner>
       ) : null}
       {status.kind === 'not_saved' ? (
@@ -482,12 +557,39 @@ function StatusPanel({
           role="alert"
           title="You’re offline — not saved"
           action={
-            <Button size="md" onClick={onRetry}>
-              Try again
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {keepButton}
+              <Button size="md" variant="secondary" onClick={onRetry}>
+                Try again
+              </Button>
+            </div>
           }
         >
-          Nothing was sent. Your entry stays on this screen; tap Try again when you have signal.
+          Nothing was sent. Keep it as pending on this phone and it will be added when you’re back
+          online, or tap Try again when you have signal.
+        </Banner>
+      ) : null}
+      {status.kind === 'pending_saved' ? (
+        <Banner
+          tone="offline"
+          role="status"
+          title="Pending on this device — NOT yet in shared history; no text sent."
+          action={
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border-strong bg-surface px-4 font-semibold"
+            >
+              Done
+            </Link>
+          }
+        >
+          Only this phone has it. It will be added to the shared history when you’re back online and
+          open NFC Baby — you’ll see it on Home until then.
+        </Banner>
+      ) : null}
+      {status.kind === 'pending_failed' ? (
+        <Banner tone="danger" role="alert" title="Couldn’t keep it on this phone">
+          {status.message} Not saved: keep this screen open and tap Save when you have signal.
         </Banner>
       ) : null}
       {status.kind === 'auth' ? (

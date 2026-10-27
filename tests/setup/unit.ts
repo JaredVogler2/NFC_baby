@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom/vitest'
+// In-memory IndexedDB for offline-draft tests (jsdom has none).
+import 'fake-indexeddb/auto'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 

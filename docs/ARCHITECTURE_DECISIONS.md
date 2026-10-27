@@ -138,11 +138,34 @@ primitives (Button, Field, Segmented, Chip, Sheet) are written once with accessi
   against a local fake HTTP server.
 
 ## ADR-014 Offline
-A small hand-written service worker caches only static build assets and a static offline page; it
-never caches HTML of authenticated pages or any `/api/*` response. Offline drafts live in IndexedDB,
-tagged with the signed-in user's id, capped (max 20 drafts, 7 days), shown as "Pending on this
-device — not yet in shared history; no text sent", synced only by an explicit tap while signed in as
-the same user, using the draft's original `clientRequestId`. Drafts are wiped on sign-out.
+**Service worker** (`public/sw.js`, ~100 lines, production only): caches hashed build assets
+(`/_next/static/*`), icons, the manifest and one offline page (`/offline`) that it fetches
+**without cookies** at install time, so it can never contain family data. It never caches HTML of
+authenticated pages or any `/api/*` response; navigations are network-first (with navigation
+preload) and fall back to `/offline` only when the network fails. Caches are versioned per build
+(`/sw.js?v=<build id>`) and old ones are deleted on activation. Because the caches hold nothing
+personal they are not cleared on sign-out.
+
+**Pending drafts** (`lib/offline/*`, IndexedDB `nfc-baby`): created only when a parent has tapped
+Save, the save could not be confirmed (offline, or "can't confirm"), and they then tap **Keep as
+pending on this phone**. A draft stores the exact request body with the original `clientRequestId`
+and the time pinned to the Save tap, plus the user id and household id. It is shown as "Pending on
+this device — NOT yet in shared history; no text sent" and never counted as an event.
+Sync runs when Home opens online or the `online` event fires (the Save intent was already confirmed
+twice, so this is allowed by prompt 09), and also via "Sync now". Every sync first asks
+`GET /events/by-request/{id}`, then POSTs the same body with `offlineSync: true`, and deletes the
+draft only after the server confirms. Before uploading, `GET /me` must return the same user and
+household that created the drafts; drafts of another person on the same phone are never shown or
+uploaded (they can only be removed). Limits: 20 drafts per person, 7 days (expired drafts are
+removed with a visible notice). Old times still require an explicit "Yes, save with that time".
+
+**Remembered stickers / family basics**: when a sticker form or Home is opened online, the token,
+child nickname, intent, time zone and units are stored so a scan with no signal can still show the
+same form (offline screen). Sign-out wipes drafts, remembered stickers and family basics.
+
+**Not used**: Background Sync (not supported by iOS Safari), push notifications, offline reads of
+the shared history (the offline screen says it needs a connection instead of showing stale data as
+current).
 
 ## ADR-015 Observability and privacy
 No analytics, trackers or third-party telemetry. Server logs use a small structured logger that

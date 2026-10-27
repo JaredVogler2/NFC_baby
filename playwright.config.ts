@@ -22,6 +22,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     timezoneId: 'America/New_York',
     locale: 'en-US',
+    // page.route() can't see requests a service worker handles; specs that test the worker
+    // itself opt in with test.use({ serviceWorkers: 'allow' }).
+    serviceWorkers: 'block',
   },
   projects: [
     {

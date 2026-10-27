@@ -31,6 +31,7 @@ export default async function LogPage({
     <LogScreen
       intent={intent}
       userId={user.id}
+      householdId={ctx.membership.householdId}
       child={{ id: child.id, nickname: child.nickname }}
       tagToken={null}
       tagLabel={null}

@@ -46,6 +46,7 @@ export default async function TagPage({ params }: { params: Promise<{ token: str
     <LogScreen
       intent={resolved.tag.purpose}
       userId={user.id}
+      householdId={ctx.membership.householdId}
       child={{ id: resolved.child.id, nickname: resolved.child.nickname }}
       tagToken={resolved.tag.token}
       tagLabel={resolved.tag.label}

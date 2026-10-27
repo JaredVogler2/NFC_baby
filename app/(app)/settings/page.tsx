@@ -89,6 +89,9 @@ export default async function SettingsPage() {
             ))}
         </Card>
         <SignOutButton />
+        <p className="text-center text-sm text-muted">
+          Signing out also removes pending entries and remembered stickers from this phone.
+        </p>
       </div>
     </AppShell>
   )

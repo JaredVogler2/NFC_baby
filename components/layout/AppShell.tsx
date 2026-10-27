@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ChevronLeftIcon } from '@/components/icons'
 import { BottomNav } from './BottomNav'
+import { OfflineBanner } from './OfflineBanner'
 
 /**
  * Standard signed-in page frame: sticky header, single 480px column, bottom navigation.
@@ -37,6 +38,7 @@ export function AppShell({
           {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
         </div>
       </header>
+      <OfflineBanner />
       <main
         id="main"
         className={`mx-auto w-full max-w-[480px] px-4 pt-4 ${hideNav ? 'pb-safe' : 'pb-28'}`}
